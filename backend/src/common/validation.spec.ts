@@ -18,7 +18,7 @@ class SampleDto {
   @IsEmail({}, { message: 'Vnesi veljaven e-poštni naslov' })
   email: string;
 
-  @IsString()
+  @IsString({ message: 'Vnesi geslo' })
   @MinLength(8, { message: 'Geslo mora imeti vsaj 8 znakov' })
   password: string;
 
@@ -70,6 +70,12 @@ describe('createValidationPipe', () => {
         password: 'Geslo mora imeti vsaj 8 znakov',
       },
     });
+  });
+
+  it('pri več napakah na polju vrne sporočilo zgornjega dekoratorja', async () => {
+    const response = await responseOf({ ...valid, password: undefined });
+
+    expect(response).toMatchObject({ errors: { password: 'Vnesi geslo' } });
   });
 
   it('gnezdena polja poimenuje s piko', async () => {

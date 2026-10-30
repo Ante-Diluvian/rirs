@@ -7,7 +7,7 @@ import { Messages } from './messages';
 
 export type FieldErrors = Record<string, string>;
 
-// prvo sporočilo za vsako polje, gnezdena polja s piko (address.street)
+// eno sporočilo na polje, gnezdena polja s piko (address.street)
 export function toFieldErrors(
   errors: ValidationError[],
   parentPath = '',
@@ -19,7 +19,8 @@ export function toFieldErrors(
       : error.property;
     const messages = Object.values(error.constraints ?? {});
     if (messages.length > 0) {
-      result[path] = messages[0];
+      // dekoratorji se izvajajo od spodaj navzgor, prednost ima zgornji
+      result[path] = messages[messages.length - 1];
     }
     if (error.children?.length) {
       Object.assign(result, toFieldErrors(error.children, path));

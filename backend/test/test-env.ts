@@ -5,6 +5,8 @@ export function loadTestEnv(): void {
   for (const file of ['.env.test', '../.env.test']) {
     if (existsSync(file)) process.loadEnvFile(file);
   }
+  process.env.JWT_SECRET = 'e2e-testni-podpisni-kljuc';
+  process.env.JWT_EXPIRES_IN = '1h';
 
   const url = process.env.DATABASE_URL;
   if (!url) {

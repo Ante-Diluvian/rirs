@@ -1,5 +1,11 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { Prisma, PrismaClient } from '../src/generated/prisma/client';
+import { INestApplication } from '@nestjs/common';
+import bcrypt from 'bcryptjs';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { Prisma, PrismaClient, Role } from '../src/generated/prisma/client';
+
+export const TEST_PASSWORD = 'geslo1234';
 
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   const [{ name }] = await prisma.$queryRaw<{ name: string }[]>`
@@ -25,6 +31,25 @@ export function createMember(
       ...data,
     },
   });
+}
+
+// nizek faktor bcrypt samo za hitrejše teste, compare deluje enako
+export async function createUser(prisma: PrismaClient, role: Role) {
+  return createMember(prisma, {
+    role,
+    passwordHash: await bcrypt.hash(TEST_PASSWORD, 4),
+  });
+}
+
+export async function login(
+  app: INestApplication<App>,
+  email: string,
+): Promise<string> {
+  const res = await request(app.getHttpServer())
+    .post('/auth/login')
+    .send({ email, password: TEST_PASSWORD })
+    .expect(200);
+  return (res.body as { accessToken: string }).accessToken;
 }
 
 export async function createBookWithCopies(prisma: PrismaClient, copies = 1) {

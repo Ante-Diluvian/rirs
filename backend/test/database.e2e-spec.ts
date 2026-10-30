@@ -5,10 +5,12 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { Public } from '../src/common/decorators/public.decorator';
 import { LoanStatus, ReservationStatus } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createBookWithCopies, createMember, resetDatabase } from './factories';
 
+@Public()
 @Controller('prisma-errors')
 class PrismaErrorsController {
   constructor(private readonly prisma: PrismaService) {}
