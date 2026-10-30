@@ -9,6 +9,7 @@ if (existsSync(rootEnvFile)) {
 }
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   turbopack: {
     rules: {
       "*.css": {
