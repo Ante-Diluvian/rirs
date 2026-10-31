@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { Messages } from '../../common/messages';
-import { normalizeEmail } from './transforms';
+import { normalizeEmail } from '../../common/transforms';
 
 export class LoginDto {
   @ApiProperty({ example: 'maja.kovac@example.com' })
