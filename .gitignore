@@ -1,12 +1,12 @@
 node_modules/
-
-.next/
-out/
 dist/
 build/
+out/
+.next/
+coverage/
+.nyc_output/
 *.tsbuildinfo
 next-env.d.ts
-
 **/generated/prisma/
 
 .env
@@ -16,13 +16,29 @@ next-env.d.ts
 backups/
 *.dump
 
-coverage/
-
+logs/
 *.log
-npm-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+.temp/
+.tmp/
+pids/
+*.pid
+*.pid.lock
+*.pem
+.vercel/
 
 .idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 .vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
 !.vscode/extensions.json
+
 .DS_Store
 Thumbs.db

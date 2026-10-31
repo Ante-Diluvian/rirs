@@ -1,0 +1,191 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = "js"
+  previewFeatures     = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["librarium"]
+}
+
+enum Role {
+  READER
+  LIBRARIAN
+  ADMIN
+
+  @@schema("librarium")
+}
+
+enum CopyStatus {
+  AVAILABLE
+  ON_LOAN
+  RESERVED
+  LOST
+
+  @@schema("librarium")
+}
+
+enum LoanStatus {
+  ACTIVE
+  OVERDUE
+  RETURNED
+
+  @@schema("librarium")
+}
+
+enum ReservationStatus {
+  WAITING
+  READY
+  FULFILLED
+  EXPIRED
+  CANCELLED
+
+  @@schema("librarium")
+}
+
+model Member {
+  id           String   @id @default(uuid()) @db.Uuid
+  firstName    String   @map("first_name") @db.VarChar(100)
+  lastName     String   @map("last_name") @db.VarChar(100)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash")
+  role         Role     @default(READER)
+  phone        String?  @db.VarChar(30)
+  city         String?  @db.VarChar(100)
+  joinedOn     DateTime @default(now()) @map("joined_on") @db.Date
+  isBlocked    Boolean  @default(false) @map("is_blocked")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  loans         Loan[]        @relation("MemberLoans")
+  recordedLoans Loan[]        @relation("LibrarianLoans")
+  reservations  Reservation[]
+
+  @@index([lastName, firstName])
+  @@map("member")
+  @@schema("librarium")
+}
+
+model Author {
+  id        String    @id @default(uuid()) @db.Uuid
+  firstName String    @map("first_name") @db.VarChar(100)
+  lastName  String    @map("last_name") @db.VarChar(100)
+  birthDate DateTime? @map("birth_date") @db.Date
+  country   String?   @db.VarChar(100)
+  biography String?
+
+  books BookAuthor[]
+
+  @@index([lastName, firstName])
+  @@map("author")
+  @@schema("librarium")
+}
+
+model Book {
+  id              String   @id @default(uuid()) @db.Uuid
+  title           String   @db.VarChar(255)
+  // ISBN-13 brez vezajev
+  isbn            String   @unique @db.Char(13)
+  publicationYear Int?     @map("publication_year")
+  pageCount       Int?     @map("page_count")
+  genre           String   @db.VarChar(100)
+  language        String?  @db.VarChar(50)
+  description     String?
+  price           Decimal? @db.Decimal(8, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  authors      BookAuthor[]
+  copies       Copy[]
+  reservations Reservation[]
+
+  @@index([title])
+  @@index([genre])
+  @@map("book")
+  @@schema("librarium")
+}
+
+model BookAuthor {
+  bookId   String @map("book_id") @db.Uuid
+  authorId String @map("author_id") @db.Uuid
+
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  author Author @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@id([bookId, authorId])
+  @@index([authorId])
+  @@map("book_author")
+  @@schema("librarium")
+}
+
+model Copy {
+  id              String     @id @default(uuid()) @db.Uuid
+  bookId          String     @map("book_id") @db.Uuid
+  inventoryNumber String     @unique @map("inventory_number") @db.VarChar(20)
+  status          CopyStatus @default(AVAILABLE)
+  purchasedOn     DateTime?  @map("purchased_on") @db.Date
+  shelf           String?    @db.VarChar(50)
+
+  book         Book          @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  loans        Loan[]
+  reservations Reservation[]
+
+  @@index([bookId, status])
+  @@map("copy")
+  @@schema("librarium")
+}
+
+model Loan {
+  id             String     @id @default(uuid()) @db.Uuid
+  memberId       String     @map("member_id") @db.Uuid
+  copyId         String     @map("copy_id") @db.Uuid
+  librarianId    String     @map("librarian_id") @db.Uuid
+  loanedOn       DateTime   @map("loaned_on") @db.Date
+  dueDate        DateTime   @map("due_date") @db.Date
+  returnedOn     DateTime?  @map("returned_on") @db.Date
+  extensionCount Int        @default(0) @map("extension_count")
+  status         LoanStatus @default(ACTIVE)
+  fineAmount     Decimal    @default(0) @map("fine_amount") @db.Decimal(8, 2)
+  finePaid       Boolean    @default(false) @map("fine_paid")
+  fineWaived     Boolean    @default(false) @map("fine_waived")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  member    Member @relation("MemberLoans", fields: [memberId], references: [id], onDelete: Restrict)
+  librarian Member @relation("LibrarianLoans", fields: [librarianId], references: [id], onDelete: Restrict)
+  copy      Copy   @relation(fields: [copyId], references: [id], onDelete: Restrict)
+
+  // delni indeks: odprto izposojo išči s findFirst, ne s findUnique
+  @@unique([copyId], where: raw("status <> 'RETURNED'"), map: "loan_one_open_per_copy")
+  @@index([memberId, status])
+  @@map("loan")
+  @@schema("librarium")
+}
+
+model Reservation {
+  id         String            @id @default(uuid()) @db.Uuid
+  memberId   String            @map("member_id") @db.Uuid
+  bookId     String            @map("book_id") @db.Uuid
+  copyId     String?           @map("copy_id") @db.Uuid
+  status     ReservationStatus @default(WAITING)
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  // zadnji dan za prevzem, vključno
+  readyUntil DateTime?         @map("ready_until") @db.Date
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  copy   Copy?  @relation(fields: [copyId], references: [id], onDelete: SetNull)
+
+  @@unique([memberId, bookId], where: raw("status = 'WAITING' OR status = 'READY'"), map: "reservation_one_active_per_member_book")
+  @@index([bookId, status, createdAt])
+  @@map("reservation")
+  @@schema("librarium")
+}
+
+model Setting {
+  key   String @id @db.VarChar(50)
+  value String @db.VarChar(100)
+
+  @@map("setting")
+  @@schema("librarium")
+}
