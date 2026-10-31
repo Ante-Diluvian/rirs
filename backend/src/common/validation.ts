@@ -39,6 +39,18 @@ export function validationExceptionFactory(
   });
 }
 
+// napaka ob polju, ki jo odkrije šele servis, npr. neobstoječ avtor
+export function fieldError(
+  field: string,
+  message: string,
+): BadRequestException {
+  return new BadRequestException({
+    statusCode: 400,
+    message: Messages.validation.invalidInput,
+    errors: { [field]: message },
+  });
+}
+
 export function createValidationPipe(): ValidationPipe {
   return new ValidationPipe({
     whitelist: true,

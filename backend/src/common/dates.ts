@@ -23,3 +23,7 @@ export function diffDays(later: string, earlier: string): number {
 export function toDbDate(date: string): Date {
   return new Date(`${date}T00:00:00Z`);
 }
+
+export function fromDbDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}

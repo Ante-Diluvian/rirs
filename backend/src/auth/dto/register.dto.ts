@@ -9,7 +9,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Messages } from '../../common/messages';
-import { normalizeEmail, trim } from './transforms';
+import { normalizeEmail, trim } from '../../common/transforms';
 
 export class RegisterDto {
   @ApiProperty({ example: 'Maja' })

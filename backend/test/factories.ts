@@ -3,7 +3,13 @@ import { INestApplication } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { Prisma, PrismaClient, Role } from '../src/generated/prisma/client';
+import { toDbDate } from '../src/common/dates';
+import {
+  LoanStatus,
+  Prisma,
+  PrismaClient,
+  Role,
+} from '../src/generated/prisma/client';
 
 export const TEST_PASSWORD = 'geslo1234';
 
@@ -70,5 +76,26 @@ export async function createBookWithCopies(prisma: PrismaClient, copies = 1) {
       },
     },
     include: { authors: true, copies: true },
+  });
+}
+
+// datumi niso pomembni, dokler test ne preverja rokov in zamudnin
+export function createLoan(
+  prisma: PrismaClient,
+  data: {
+    memberId: string;
+    librarianId: string;
+    copyId: string;
+    status: LoanStatus;
+  },
+) {
+  return prisma.loan.create({
+    data: {
+      ...data,
+      loanedOn: toDbDate('2026-09-01'),
+      dueDate: toDbDate('2026-09-22'),
+      returnedOn:
+        data.status === LoanStatus.RETURNED ? toDbDate('2026-09-20') : null,
+    },
   });
 }
