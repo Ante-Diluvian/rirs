@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
+import { AuthorsModule } from './authors/authors.module';
+import { BooksModule } from './books/books.module';
+import { CopiesModule } from './copies/copies.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
@@ -20,6 +23,9 @@ import { PrismaModule } from './prisma/prisma.module';
     HealthModule,
     AuthModule,
     MembersModule,
+    AuthorsModule,
+    BooksModule,
+    CopiesModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
