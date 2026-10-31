@@ -1,4 +1,10 @@
-import { addDays, diffDays, toDbDate, todayInLjubljana } from './dates';
+import {
+  addDays,
+  diffDays,
+  fromDbDate,
+  toDbDate,
+  todayInLjubljana,
+} from './dates';
 
 describe('dates', () => {
   it('todayInLjubljana vrne koledarski datum v Ljubljani', () => {
@@ -32,5 +38,10 @@ describe('dates', () => {
     expect(toDbDate('2026-10-12').toISOString()).toBe(
       '2026-10-12T00:00:00.000Z',
     );
+  });
+
+  it('fromDbDate vrne datum iz baze kot YYYY-MM-DD', () => {
+    expect(fromDbDate(toDbDate('2026-10-12'))).toBe('2026-10-12');
+    expect(fromDbDate(toDbDate('1903-01-24'))).toBe('1903-01-24');
   });
 });

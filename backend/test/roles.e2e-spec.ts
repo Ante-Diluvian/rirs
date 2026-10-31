@@ -1,24 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { Controller, Get, INestApplication } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
-import { Roles } from '../src/common/decorators/roles.decorator';
 import { Member, Role } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createUser, login, resetDatabase } from './factories';
-
-// pot za knjižničarje, dokler je ne prinese T11 (npr. pult)
-@Controller('test-librarian-only')
-class LibrarianOnlyController {
-  @Get()
-  @Roles(Role.LIBRARIAN, Role.ADMIN)
-  ok() {
-    return { ok: true };
-  }
-}
 
 jest.setTimeout(30_000);
 
@@ -33,7 +22,6 @@ describe('US-01 Registracija in prijava: vloge', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-      controllers: [LibrarianOnlyController],
     }).compile();
 
     app = moduleRef.createNestApplication();
@@ -67,7 +55,7 @@ describe('US-01 Registracija in prijava: vloge', () => {
   describe('AC5: dostop po vlogi', () => {
     it('bralec na poti za knjižničarje dobi 404 »Ta stran ne obstaja«', async () => {
       const res = await http()
-        .get('/test-librarian-only')
+        .get('/authors')
         .set('Authorization', `Bearer ${tokens.reader}`)
         .expect(404);
 
@@ -80,15 +68,14 @@ describe('US-01 Registracija in prijava: vloge', () => {
     it('knjižničar in administrator imata dostop do poti za knjižničarje', async () => {
       for (const token of [tokens.librarian, tokens.admin]) {
         await http()
-          .get('/test-librarian-only')
+          .get('/authors')
           .set('Authorization', `Bearer ${token}`)
-          .expect(200)
-          .expect({ ok: true });
+          .expect(200);
       }
     });
 
     it('brez prijave so zaščitene vse poti razen javnih (401)', async () => {
-      await http().get('/test-librarian-only').expect(401);
+      await http().get('/authors').expect(401);
       await http().get('/me').expect(401);
       await setRole(reader.id, Role.ADMIN).expect(401);
 
@@ -138,7 +125,7 @@ describe('US-01 Registracija in prijava: vloge', () => {
 
       const newToken = await login(app, reader.email);
       await http()
-        .get('/test-librarian-only')
+        .get('/authors')
         .set('Authorization', `Bearer ${newToken}`)
         .expect(200);
     });
