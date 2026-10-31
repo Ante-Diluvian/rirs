@@ -100,6 +100,20 @@ describe('US-01 Registracija in prijava', () => {
       expect(await prisma.member.count()).toBe(0);
     });
 
+    it('ime in priimek iz samih presledkov štejeta kot manjkajoča', async () => {
+      const res = await register({
+        ...maja,
+        firstName: '   ',
+        lastName: '\t',
+      }).expect(400);
+
+      expect((res.body as { errors: object }).errors).toEqual({
+        firstName: 'Vnesi ime',
+        lastName: 'Vnesi priimek',
+      });
+      expect(await prisma.member.count()).toBe(0);
+    });
+
     it('zavrne geslo s 7 znaki z napako ob polju in računa ne ustvari', async () => {
       const res = await register({ ...maja, password: 'geslo12' }).expect(400);
 
@@ -125,6 +139,18 @@ describe('US-01 Registracija in prijava', () => {
         errors: { password: 'Geslo je predolgo, največ 72 znakov' },
       });
       expect(await prisma.member.count()).toBe(0);
+    });
+  });
+
+  describe('AC3: vloga novega računa', () => {
+    it('nov račun ima vedno vlogo bralec', async () => {
+      const res = await register(maja).expect(201);
+
+      expect((res.body as AuthBody).user.role).toBe(Role.READER);
+      const saved = await prisma.member.findUniqueOrThrow({
+        where: { email: maja.email },
+      });
+      expect(saved.role).toBe(Role.READER);
     });
 
     it('vloge ni mogoče nastaviti ob registraciji', async () => {

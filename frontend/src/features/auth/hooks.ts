@@ -29,6 +29,17 @@ function useSignIn() {
   };
 }
 
+// predpomnilnik poizvedb ob odjavi počisti Providers
+export function useLogout() {
+  const logout = useAuthStore((state) => state.logout);
+  const router = useRouter();
+
+  return () => {
+    logout();
+    router.replace("/prijava");
+  };
+}
+
 function post<T>(path: string, body: unknown) {
   return api<T>(path, { method: "POST", body: JSON.stringify(body) });
 }

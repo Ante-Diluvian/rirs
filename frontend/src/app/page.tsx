@@ -1,11 +1,18 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { homePath } from "@/features/auth/home-path";
+import { useAuthHydrated, useAuthStore } from "@/stores/auth-store";
+
 export default function Home() {
-  return (
-    <section className="space-y-2">
-      <h1 className="text-3xl font-medium">Librarium</h1>
-      <p className="text-zinc-600">
-        Spletni sistem za izposojo, rezervacije in zamudnine v lokalni
-        knjižnici.
-      </p>
-    </section>
-  );
+  const hydrated = useAuthHydrated();
+  const user = useAuthStore((state) => state.user);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (hydrated) router.replace(user ? homePath(user.role) : "/prijava");
+  }, [hydrated, user, router]);
+
+  return null;
 }

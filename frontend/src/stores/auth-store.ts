@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -29,6 +30,16 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "librarium-auth",
       partialize: ({ token, user }) => ({ token, user }),
+      // naloži jo Providers po prvem prikazu, da se ujema s strežniškim
+      skipHydration: true,
     },
   ),
 );
+
+export function useAuthHydrated(): boolean {
+  return useSyncExternalStore(
+    (onChange) => useAuthStore.persist.onFinishHydration(onChange),
+    () => useAuthStore.persist.hasHydrated(),
+    () => false,
+  );
+}

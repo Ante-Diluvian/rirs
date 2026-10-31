@@ -40,6 +40,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(0, UNEXPECTED_ERROR);
   }
 
+  // potekel ali neveljaven žeton: odjava, na prijavo preusmeri RequireRole
+  if (res.status === 401 && token) useAuthStore.getState().logout();
   if (!res.ok) {
     const body: ErrorBody = await res.json().catch(() => ({}));
     const message = Array.isArray(body.message)
