@@ -22,6 +22,7 @@ export const Messages = {
     notFound: 'Član ne obstaja.',
     roleInvalid: 'Vloga mora biti READER, LIBRARIAN ali ADMIN.',
     ownRole: 'Svoje vloge ne moreš spremeniti.',
+    queryInvalid: 'Iskalni niz je lahko dolg največ 100 znakov',
   },
   authors: {
     notFound: 'Avtor ne obstaja.',
