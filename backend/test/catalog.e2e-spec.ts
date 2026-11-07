@@ -26,6 +26,8 @@ interface BookOptions {
   genre?: string;
   year?: number;
   isbn?: string;
+  language?: string;
+  description?: string;
   copies?: CopyStatus[];
 }
 
@@ -75,6 +77,8 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
         isbn: options.isbn ?? `978961${String(++isbnCounter).padStart(7, '0')}`,
         genre: options.genre ?? 'roman',
         publicationYear: options.year ?? null,
+        language: options.language ?? null,
+        description: options.description ?? null,
         authors: {
           create: (options.authors ?? [orwell]).map((author) => ({
             authorId: author.id,
@@ -95,6 +99,21 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
   const titles = async (query: Query) => {
     const res = await search(query).expect(200);
     return (res.body as BookPage).items.map((item) => item.title);
+  };
+  const detail = (id: string, auth = token) =>
+    http().get(`/books/${id}`).set('Authorization', `Bearer ${auth}`);
+
+  // vsak član ima lahko samo eno aktivno rezervacijo naslova
+  const addReservations = async (
+    bookId: string,
+    statuses: ReservationStatus[],
+  ) => {
+    for (const status of statuses) {
+      const member = await createMember(prisma);
+      await prisma.reservation.create({
+        data: { memberId: member.id, bookId, status },
+      });
+    }
   };
 
   describe('AC1: iskanje po naslovu, avtorju in ISBN', () => {
@@ -236,18 +255,13 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
       });
       const empty = await addBook('Animal Farm', { year: 1945 });
       // dolžina vrste šteje samo čakajoče rezervacije
-      for (const status of [
+      await addReservations(book.id, [
         ReservationStatus.WAITING,
         ReservationStatus.WAITING,
         ReservationStatus.READY,
         ReservationStatus.CANCELLED,
         ReservationStatus.FULFILLED,
-      ]) {
-        const member = await createMember(prisma);
-        await prisma.reservation.create({
-          data: { memberId: member.id, bookId: book.id, status },
-        });
-      }
+      ]);
 
       const res = await search({ q: 'orwell' }).expect(200);
 
@@ -281,6 +295,64 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
         page: 1,
         pageSize: 20,
       });
+    });
+  });
+
+  describe('AC3: podrobnosti knjige (GET /books/:id)', () => {
+    it('vrne podatke knjige, avtorje, proste od vseh izvodov in dolžino vrste', async () => {
+      const book = await addBook('1984', {
+        authors: [tavcar, orwell],
+        genre: 'znanstvena fantastika',
+        year: 1949,
+        language: 'angleški',
+        description: 'Distopični roman.',
+        copies: [CopyStatus.ON_LOAN, CopyStatus.ON_LOAN, CopyStatus.LOST],
+      });
+      await addReservations(book.id, [
+        ReservationStatus.WAITING,
+        ReservationStatus.WAITING,
+        ReservationStatus.CANCELLED,
+      ]);
+
+      const res = await detail(book.id).expect(200);
+
+      expect(res.body).toEqual({
+        id: book.id,
+        title: '1984',
+        isbn: book.isbn,
+        genre: 'znanstvena fantastika',
+        publicationYear: 1949,
+        language: 'angleški',
+        description: 'Distopični roman.',
+        authors: [
+          { id: orwell.id, firstName: 'George', lastName: 'Orwell' },
+          { id: tavcar.id, firstName: 'Ivan', lastName: 'Tavčar' },
+        ],
+        availableCopies: 0,
+        totalCopies: 2,
+        queueLength: 2,
+      });
+    });
+
+    it('razpoložljivost je enaka kot pri zadetku v iskanju', async () => {
+      const book = await addBook('Animal Farm', {
+        copies: [CopyStatus.AVAILABLE, CopyStatus.RESERVED],
+      });
+      await addReservations(book.id, [ReservationStatus.WAITING]);
+
+      const found = await search({ q: 'animal' }).expect(200);
+      const res = await detail(book.id).expect(200);
+
+      const counts = { availableCopies: 1, totalCopies: 2, queueLength: 1 };
+      expect(found.body).toMatchObject({ items: [counts] });
+      expect(res.body).toMatchObject(counts);
+    });
+
+    it('za neobstoječo knjigo vrne 404 »Knjiga ne obstaja.«', async () => {
+      for (const id of [randomUUID(), 'ni-uuid']) {
+        const res = await detail(id).expect(404);
+        expect(res.body).toMatchObject({ message: 'Knjiga ne obstaja.' });
+      }
     });
   });
 
@@ -328,12 +400,13 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
   });
 
   describe('dostop', () => {
-    it('iskanje in žanre lahko berejo vse vloge', async () => {
-      await addBook('1984');
+    it('iskanje, podrobnosti knjige in žanre lahko berejo vse vloge', async () => {
+      const book = await addBook('1984');
       for (const role of [Role.READER, Role.LIBRARIAN, Role.ADMIN]) {
         const user = await createUser(prisma, role);
         const auth = await login(app, user.email);
         await search({ q: '1984' }, auth).expect(200);
+        await detail(book.id, auth).expect(200);
         await http()
           .get('/genres')
           .set('Authorization', `Bearer ${auth}`)
@@ -343,6 +416,7 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
 
     it('brez prijave vrne 401', async () => {
       await http().get('/books').expect(401);
+      await http().get(`/books/${randomUUID()}`).expect(401);
       await http().get('/genres').expect(401);
     });
   });

@@ -6,16 +6,11 @@ import {
 } from "@tanstack/react-query";
 import { api, type ApiError } from "@/lib/api";
 import { authorKeys, bookKeys, genreKeys } from "./keys";
-import {
-  fetchBook,
-  fetchBooks,
-  fetchGenres,
-  forgetBook,
-  rememberBook,
-} from "./placeholder";
 import type {
   AuthorName,
+  Availability,
   Book,
+  BookDetail,
   BookListParams,
   BookPage,
   Copy,
@@ -25,6 +20,12 @@ import type {
   UpdateCopyInput,
 } from "./types";
 
+const NO_AVAILABILITY: Availability = {
+  availableCopies: 0,
+  totalCopies: 0,
+  queueLength: 0,
+};
+
 function send<T>(path: string, method: string, body?: unknown) {
   return api<T>(path, {
     method,
@@ -32,25 +33,28 @@ function send<T>(path: string, method: string, body?: unknown) {
   });
 }
 
-export function useBooks(params: BookListParams) {
+export function useBooks({ q, page, genre, available }: BookListParams) {
+  const params = new URLSearchParams({ q, page: String(page) });
+  if (genre) params.set("genre", genre);
+  if (available) params.set("available", "true");
   return useQuery<BookPage, ApiError>({
-    queryKey: bookKeys.list(params),
-    queryFn: () => fetchBooks(params),
+    queryKey: bookKeys.list({ q, page, genre, available }),
+    queryFn: () => api<BookPage>(`/books?${params}`),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useBook(id: string) {
-  return useQuery<Book, ApiError>({
+  return useQuery<BookDetail, ApiError>({
     queryKey: bookKeys.detail(id),
-    queryFn: () => fetchBook(id),
+    queryFn: () => api<BookDetail>(`/books/${id}`),
   });
 }
 
 export function useGenres() {
   return useQuery<string[], ApiError>({
     queryKey: genreKeys.all,
-    queryFn: fetchGenres,
+    queryFn: () => api<string[]>("/genres"),
   });
 }
 
@@ -79,8 +83,12 @@ export function useSaveBook(id: string | null) {
     mutationFn: (input) =>
       id ? send(`/books/${id}`, "PUT", input) : send("/books", "POST", input),
     onSuccess: (book) => {
-      rememberBook(book);
-      queryClient.setQueryData(bookKeys.detail(book.id), book);
+      // urejanje ne spremeni razpoložljivosti, nova knjiga pa še nima izvodov
+      queryClient.setQueryData<BookDetail>(bookKeys.detail(book.id), (old) => ({
+        ...NO_AVAILABILITY,
+        ...old,
+        ...book,
+      }));
       return queryClient.invalidateQueries({ queryKey: bookKeys.lists() });
     },
   });
@@ -91,7 +99,7 @@ export function useDeleteBook() {
   return useMutation<void, ApiError, string>({
     mutationFn: (id) => send(`/books/${id}`, "DELETE"),
     onSuccess: (_, id) => {
-      forgetBook(id);
+      queryClient.removeQueries({ queryKey: bookKeys.detail(id) });
       return queryClient.invalidateQueries({ queryKey: bookKeys.lists() });
     },
   });
@@ -104,12 +112,13 @@ export function useCopies(bookId: string) {
   });
 }
 
-// vsak izvod spremeni tudi števili izvodov v seznamu knjig
+// vsak izvod spremeni tudi razpoložljivost knjige in števili v seznamu,
+// ključ podrobnosti vključuje tudi seznam izvodov
 function useRefreshCopies(bookId: string) {
   const queryClient = useQueryClient();
   return () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: bookKeys.copies(bookId) }),
+      queryClient.invalidateQueries({ queryKey: bookKeys.detail(bookId) }),
       queryClient.invalidateQueries({ queryKey: bookKeys.lists() }),
     ]);
 }
