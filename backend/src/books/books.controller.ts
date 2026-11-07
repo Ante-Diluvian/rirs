@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   NotFoundException,
@@ -9,6 +10,7 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -27,7 +29,9 @@ import { Messages } from '../common/messages';
 import { Role } from '../generated/prisma/client';
 import { BooksService } from './books.service';
 import { BookDto } from './dto/book.dto';
+import { BookPageDto } from './dto/book-list.dto';
 import { SaveBookDto } from './dto/save-book.dto';
+import { SearchBooksDto } from './dto/search-books.dto';
 
 const bookIdPipe = new ParseUUIDPipe({
   exceptionFactory: () => new NotFoundException(Messages.books.notFound),
@@ -39,6 +43,19 @@ const bookIdPipe = new ParseUUIDPipe({
 @Controller('books')
 export class BooksController {
   constructor(private readonly books: BooksService) {}
+
+  @Get()
+  @ApiOperation({
+    summary:
+      'Search the catalog with availability and queue length, 20 books per page',
+  })
+  @ApiOkResponse({ type: BookPageDto })
+  @ApiBadRequestResponse({
+    description: 'Query shorter than 3 characters or an invalid parameter',
+  })
+  search(@Query() query: SearchBooksDto): Promise<BookPageDto> {
+    return this.books.search(query);
+  }
 
   @Post()
   @Roles(Role.LIBRARIAN, Role.ADMIN)
