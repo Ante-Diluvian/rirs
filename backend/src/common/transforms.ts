@@ -19,3 +19,16 @@ export function trimToNull({ value }: TransformFnParams): unknown {
 export function normalizeIsbn({ value }: TransformFnParams): unknown {
   return typeof value === 'string' ? value.replace(/[\s-]/g, '') : value;
 }
+
+// parametri v URL so nizi, neveljavno vrednost zavrne validacija
+export function toBoolean({ value }: TransformFnParams): unknown {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}
+
+export function toNumber({ value }: TransformFnParams): unknown {
+  return typeof value === 'string' && value.trim() !== ''
+    ? Number(value)
+    : value;
+}

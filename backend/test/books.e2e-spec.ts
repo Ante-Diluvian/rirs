@@ -27,6 +27,13 @@ interface BookBody {
   authors: { id: string }[];
 }
 
+interface CatalogItem {
+  id: string;
+  title: string;
+  availableCopies: number;
+  totalCopies: number;
+}
+
 jest.setTimeout(30_000);
 
 describe('US-07 Upravljanje kataloga: knjige', () => {
@@ -83,6 +90,13 @@ describe('US-07 Upravljanje kataloga: knjige', () => {
     auth(token)(http().put(`/books/${id}`).send(body));
   const remove = (id: string, token = tokens.LIBRARIAN) =>
     auth(token)(http().delete(`/books/${id}`));
+  // iskanje po katalogu, kot ga vidi bralec (US-02)
+  const catalog = async (q: string) => {
+    const res = await auth(tokens.READER)(
+      http().get('/books').query({ q }),
+    ).expect(200);
+    return (res.body as { items: CatalogItem[] }).items;
+  };
 
   const loan = (copyId: string, status: LoanStatus) =>
     createLoan(prisma, {
@@ -232,7 +246,52 @@ describe('US-07 Upravljanje kataloga: knjige', () => {
     });
   });
 
-  describe('AC5: sprememba je takoj shranjena', () => {
+  describe('AC5: spremembe so takoj vidne v iskanju po katalogu', () => {
+    it('urejeno knjigo iskanje najde po novem naslovu in avtorju', async () => {
+      const created = await create(alamut()).expect(201);
+      const { id } = created.body as BookBody;
+
+      await update(id, {
+        ...alamut(),
+        title: 'Cvetje v jeseni',
+        authorIds: [tavcar.id],
+      }).expect(200);
+
+      expect(await catalog('cvetje')).toMatchObject([
+        { id, title: 'Cvetje v jeseni' },
+      ]);
+      expect(await catalog('tavčar')).toMatchObject([{ id }]);
+      expect(await catalog('alamut')).toEqual([]);
+      expect(await catalog('bartol')).toEqual([]);
+    });
+
+    it('nova knjiga, njeni izvodi in izbris so takoj vidni v iskanju', async () => {
+      const created = await create(alamut()).expect(201);
+      const { id } = created.body as BookBody;
+      expect(await catalog('alamut')).toMatchObject([
+        { id, availableCopies: 0, totalCopies: 0 },
+      ]);
+
+      const copy = await auth(tokens.LIBRARIAN)(
+        http().post(`/books/${id}/copies`).send({ inventoryNumber: 'INV-1' }),
+      ).expect(201);
+      expect(await catalog('alamut')).toMatchObject([
+        { availableCopies: 1, totalCopies: 1 },
+      ]);
+
+      await auth(tokens.LIBRARIAN)(
+        http()
+          .patch(`/copies/${(copy.body as { id: string }).id}`)
+          .send({ status: 'LOST' }),
+      ).expect(200);
+      expect(await catalog('alamut')).toMatchObject([
+        { availableCopies: 0, totalCopies: 0 },
+      ]);
+
+      await remove(id).expect(204);
+      expect(await catalog('alamut')).toEqual([]);
+    });
+
     it('urejanje zamenja podatke in avtorje knjige', async () => {
       const created = await create(alamut()).expect(201);
       const { id } = created.body as BookBody;
