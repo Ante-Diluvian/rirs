@@ -4,7 +4,7 @@ import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
 import { Messages } from '../../common/messages';
 import { trim } from '../../common/transforms';
 
-export class CheckLoanDto {
+export class LoanRequestDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID('all', { message: Messages.loans.memberRequired })
   memberId: string;
