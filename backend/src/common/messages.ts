@@ -51,6 +51,10 @@ export const Messages = {
     yearInvalid: 'Leto izida mora biti celo število med 1000 in 2100',
     languageTooLong: 'Jezik je predolg, največ 50 znakov',
     descriptionTooLong: 'Opis je predolg, največ 5000 znakov',
+    queryTooShort: 'Iskalni niz mora imeti vsaj 3 znake',
+    queryTooLong: 'Iskalni niz je lahko dolg največ 100 znakov',
+    availableInvalid: 'Vrednost je lahko samo true ali false',
+    pageInvalid: 'Neveljavna številka strani',
   },
   copies: {
     notFound: 'Izvod ne obstaja.',
