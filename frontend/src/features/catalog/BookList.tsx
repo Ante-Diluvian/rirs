@@ -7,9 +7,7 @@ import { Pagination } from "@/components/Pagination";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { authorNames } from "./format";
 import { useBooks } from "./hooks";
-
-// US-02 AC1: iskanje šele od 3 znakov naprej
-const MIN_QUERY_LENGTH = 3;
+import { searchQuery } from "./search";
 
 interface BookListProps {
   selectedId: string | null;
@@ -20,7 +18,7 @@ export function BookList({ selectedId, onEdit }: BookListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const q = searchParams.get("q") ?? "";
+  const q = (searchParams.get("q") ?? "").trim();
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const [search, setSearch] = useState(q);
   const debouncedSearch = useDebouncedValue(search.trim(), 300);
@@ -42,10 +40,7 @@ export function BookList({ selectedId, onEdit }: BookListProps) {
     if (debouncedSearch !== q) navigate(debouncedSearch, 1);
   }, [debouncedSearch, q, navigate]);
 
-  const books = useBooks({
-    q: q.length >= MIN_QUERY_LENGTH ? q : "",
-    page,
-  });
+  const books = useBooks({ q: searchQuery(q), page });
   const pageCount = books.data
     ? Math.ceil(books.data.total / books.data.pageSize)
     : 0;
