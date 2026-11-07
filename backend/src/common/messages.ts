@@ -1,3 +1,5 @@
+import { plural } from './plural';
+
 // Besedila iz kriterijev sprejemljivosti so dobesedna.
 export const Messages = {
   validation: {
@@ -69,6 +71,28 @@ export const Messages = {
     inventoryTooLong: 'Inventarna številka je predolga, največ 20 znakov',
     shelfTooLong: 'Oznaka police je predolga, največ 50 znakov',
     statusInvalid: 'Stanje je lahko samo AVAILABLE ali LOST.',
+  },
+  // izid preverjanja: oznaka z W-05, če je pravilo izpolnjeno, sicer razlog
+  loans: {
+    memberRequired: 'Izberi člana',
+    memberNotBlocked: 'Član ni blokiran',
+    memberBlocked: 'Član je blokiran.',
+    belowMaxLoans: (max: number) =>
+      `Manj kot ${max} ${plural(max, ['aktivna izposoja', 'aktivni izposoji', 'aktivne izposoje', 'aktivnih izposoj'])}`,
+    maxLoans: (max: number) =>
+      `Član ima ${max} ${plural(max, ['aktivno izposojo', 'aktivni izposoji', 'aktivne izposoje', 'aktivnih izposoj'])}, kar je največ dovoljeno.`,
+    withinFineLimit: (limit: string) => `Zamudnina do ${limit}`,
+    fineLimit: (fine: string, limit: string) =>
+      `Član ima neplačano zamudnino ${fine}, kar presega mejo ${limit}.`,
+    copyAvailable: 'Izvod je prost',
+    copyReservedForMember: 'Izvod je rezerviran za tega člana',
+    copyNotFound: (inv: string) => `Izvod ${inv} ne obstaja.`,
+    copyOnLoan: (inv: string) => `Izvod ${inv} je že izposojen.`,
+    copyReservedForOther: (inv: string) =>
+      `Izvod ${inv} je rezerviran za drugega člana.`,
+    copyLost: (inv: string) => `Izvod ${inv} je označen kot izgubljen.`,
+    noSameTitle: 'Član nima izposojenega istega naslova',
+    sameTitle: 'Član ima ta naslov že izposojen.',
   },
   database: {
     duplicate: 'Zapis s temi podatki že obstaja.',

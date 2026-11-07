@@ -6,6 +6,7 @@ import { Settings, SettingsService } from '../settings/settings.service';
 import { MEMBER_SEARCH_LIMIT, MembersService } from './members.service';
 
 const TODAY = '2026-10-12';
+const BOOK_ID = '5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
 
 const member: Member = {
   id: '6c1f2a3b-4d5e-4f6a-8b7c-9d0e1f2a3b4c',
@@ -42,9 +43,12 @@ function setup({
       findUnique: jest.fn().mockResolvedValue(found),
     },
     loan: {
-      findMany: jest
-        .fn()
-        .mockResolvedValue(dueDates.map((d) => ({ dueDate: toDbDate(d) }))),
+      findMany: jest.fn().mockResolvedValue(
+        dueDates.map((d) => ({
+          dueDate: toDbDate(d),
+          copy: { bookId: BOOK_ID },
+        })),
+      ),
       aggregate: jest.fn().mockResolvedValue({
         _sum: {
           fineAmount: returnedFine && new Prisma.Decimal(returnedFine),
@@ -176,6 +180,24 @@ describe('MembersService', () => {
         new NotFoundException('Član ne obstaja.'),
       );
       expect(prisma.loan.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('account', () => {
+    it('vrne naslove in roke aktivnih izposoj ter zamudnino v centih', async () => {
+      const { service, prisma } = setup({
+        dueDates: ['2026-10-07'],
+        returnedFine: '0.30',
+      });
+
+      await expect(service.account(member.id)).resolves.toEqual({
+        activeLoans: [{ bookId: BOOK_ID, dueDate: '2026-10-07' }],
+        unpaidFineCents: 80,
+      });
+      expect(prisma.loan.findMany).toHaveBeenCalledWith({
+        where: { memberId: member.id, status: { not: 'RETURNED' } },
+        select: { dueDate: true, copy: { select: { bookId: true } } },
+      });
     });
   });
 });

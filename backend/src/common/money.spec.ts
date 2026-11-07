@@ -1,5 +1,5 @@
 import { Prisma } from '../generated/prisma/client';
-import { decimalToCents, formatCents, parseCents } from './money';
+import { decimalToCents, formatCents, formatEuro, parseCents } from './money';
 
 describe('money', () => {
   it('parseCents pretvori znesek v cente', () => {
@@ -49,5 +49,12 @@ describe('money', () => {
     expect(decimalToCents(new Prisma.Decimal('5.01'))).toBe(501);
     expect(decimalToCents(new Prisma.Decimal('0'))).toBe(0);
     expect(decimalToCents(new Prisma.Decimal('123456.78'))).toBe(12345678);
+  });
+
+  it('formatEuro izpiše znesek z decimalno vejico in znakom €', () => {
+    expect(formatEuro(0)).toBe('0,00 €');
+    expect(formatEuro(500)).toBe('5,00 €');
+    expect(formatEuro(501)).toBe('5,01 €');
+    expect(formatEuro(620)).toBe('6,20 €');
   });
 });

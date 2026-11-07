@@ -10,6 +10,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 import { HealthModule } from './health/health.module';
+import { LoansModule } from './loans/loans.module';
 import { MembersModule } from './members/members.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SettingsModule } from './settings/settings.module';
@@ -30,6 +31,7 @@ import { SettingsModule } from './settings/settings.module';
     AuthorsModule,
     BooksModule,
     CopiesModule,
+    LoansModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
