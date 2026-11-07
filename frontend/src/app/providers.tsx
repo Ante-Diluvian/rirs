@@ -2,10 +2,22 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
+import { ApiError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 
+// napaka 4xx (npr. knjiga ne obstaja) se ob ponovitvi ne spremeni
+function shouldRetry(failureCount: number, error: Error) {
+  if (error instanceof ApiError && error.status < 500) return false;
+  return failureCount < 3;
+}
+
 export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { retry: shouldRetry } },
+      }),
+  );
 
   useEffect(() => {
     void useAuthStore.persist.rehydrate();

@@ -17,14 +17,22 @@ export interface Book {
   authors: AuthorName[];
 }
 
-// zadetek seznama knjig, kot ga potrebuje W-06
-export interface BookListItem {
+// prosti izvodi, vsi razen izgubljenih in čakajoči bralci
+export interface Availability {
+  availableCopies: number;
+  totalCopies: number;
+  queueLength: number;
+}
+
+export interface BookDetail extends Book, Availability {}
+
+export interface BookListItem extends Availability {
   id: string;
   title: string;
   isbn: string;
+  genre: string;
+  publicationYear: number | null;
   authors: AuthorName[];
-  availableCopies: number;
-  totalCopies: number;
 }
 
 export interface BookPage {
@@ -37,6 +45,8 @@ export interface BookPage {
 export interface BookListParams {
   q: string;
   page: number;
+  genre?: string;
+  available?: boolean;
 }
 
 export interface SaveBookInput {

@@ -13,6 +13,7 @@ import {
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookDto, bookWithAuthors } from './dto/book.dto';
+import { BookDetailDto } from './dto/book-detail.dto';
 import {
   Availability,
   BookListItemDto,
@@ -127,6 +128,16 @@ export class BooksService {
       page,
       pageSize: BOOK_PAGE_SIZE,
     };
+  }
+
+  async findOne(id: string): Promise<BookDetailDto> {
+    const book = await this.prisma.book.findUnique({
+      where: { id },
+      include: bookWithAuthors,
+    });
+    if (!book) throw new NotFoundException(Messages.books.notFound);
+    const [availability] = await this.availability([id]);
+    return { ...BookDto.from(book), ...availability };
   }
 
   async genres(): Promise<string[]> {

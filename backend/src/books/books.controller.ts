@@ -29,6 +29,7 @@ import { Messages } from '../common/messages';
 import { Role } from '../generated/prisma/client';
 import { BooksService } from './books.service';
 import { BookDto } from './dto/book.dto';
+import { BookDetailDto } from './dto/book-detail.dto';
 import { BookPageDto } from './dto/book-list.dto';
 import { SaveBookDto } from './dto/save-book.dto';
 import { SearchBooksDto } from './dto/search-books.dto';
@@ -55,6 +56,16 @@ export class BooksController {
   })
   search(@Query() query: SearchBooksDto): Promise<BookPageDto> {
     return this.books.search(query);
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Book details with authors, availability and queue length',
+  })
+  @ApiOkResponse({ type: BookDetailDto })
+  @ApiNotFoundResponse({ description: 'Book does not exist' })
+  findOne(@Param('id', bookIdPipe) id: string): Promise<BookDetailDto> {
+    return this.books.findOne(id);
   }
 
   @Post()
