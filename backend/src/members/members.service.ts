@@ -9,7 +9,7 @@ import { ClockService } from '../common/clock.service';
 import { diffDays, fromDbDate } from '../common/dates';
 import { Messages } from '../common/messages';
 import { decimalToCents, formatCents } from '../common/money';
-import { LoanStatus, Role } from '../generated/prisma/client';
+import { LoanStatus, Prisma, Role } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { MemberSummaryDto } from './dto/member-summary.dto';
@@ -65,15 +65,19 @@ export class MembersService {
     };
   }
 
-  // aktivne izposoje in neplačana zamudnina za povzetek in pravila izposoje
-  async account(memberId: string): Promise<MemberAccount> {
+  // aktivne izposoje in neplačana zamudnina za povzetek in pravila izposoje,
+  // izposoja jih bere znotraj svoje transakcije
+  async account(
+    memberId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<MemberAccount> {
     const [settings, activeLoans, returned] = await Promise.all([
       this.settings.get(),
-      this.prisma.loan.findMany({
+      db.loan.findMany({
         where: { memberId, status: { not: LoanStatus.RETURNED } },
         select: { dueDate: true, copy: { select: { bookId: true } } },
       }),
-      this.prisma.loan.aggregate({
+      db.loan.aggregate({
         where: {
           memberId,
           status: LoanStatus.RETURNED,
