@@ -16,6 +16,11 @@ import { MemberSummaryDto } from './dto/member-summary.dto';
 
 export const MEMBER_SEARCH_LIMIT = 20;
 
+export interface MemberAccount {
+  activeLoans: { bookId: string; dueDate: string }[];
+  unpaidFineCents: number;
+}
+
 @Injectable()
 export class MembersService {
   constructor(
@@ -47,15 +52,30 @@ export class MembersService {
     const member = await this.prisma.member.findUnique({ where: { id } });
     if (!member) throw new NotFoundException(Messages.members.notFound);
 
+    const [settings, account] = await Promise.all([
+      this.settings.get(),
+      this.account(id),
+    ]);
+    return {
+      ...UserDto.from(member),
+      activeLoans: account.activeLoans.length,
+      maxActiveLoans: settings.maxActiveLoans,
+      unpaidFine: formatCents(account.unpaidFineCents),
+      isBlocked: member.isBlocked,
+    };
+  }
+
+  // aktivne izposoje in neplačana zamudnina za povzetek in pravila izposoje
+  async account(memberId: string): Promise<MemberAccount> {
     const [settings, activeLoans, returned] = await Promise.all([
       this.settings.get(),
       this.prisma.loan.findMany({
-        where: { memberId: id, status: { not: LoanStatus.RETURNED } },
-        select: { dueDate: true },
+        where: { memberId, status: { not: LoanStatus.RETURNED } },
+        select: { dueDate: true, copy: { select: { bookId: true } } },
       }),
       this.prisma.loan.aggregate({
         where: {
-          memberId: id,
+          memberId,
           status: LoanStatus.RETURNED,
           finePaid: false,
           fineWaived: false,
@@ -66,22 +86,20 @@ export class MembersService {
 
     // zamujenost se v MVP izračuna ob branju, status OVERDUE se ne nastavlja
     const today = this.clock.today();
-    const overdueDays = activeLoans.reduce(
-      (days, loan) =>
-        days + Math.max(0, diffDays(today, fromDbDate(loan.dueDate))),
+    const loans = activeLoans.map((loan) => ({
+      bookId: loan.copy.bookId,
+      dueDate: fromDbDate(loan.dueDate),
+    }));
+    const overdueDays = loans.reduce(
+      (days, loan) => days + Math.max(0, diffDays(today, loan.dueDate)),
       0,
     );
     const returnedFine = returned._sum.fineAmount;
-    const unpaidFineCents =
-      (returnedFine ? decimalToCents(returnedFine) : 0) +
-      overdueDays * settings.finePerDayCents;
-
     return {
-      ...UserDto.from(member),
-      activeLoans: activeLoans.length,
-      maxActiveLoans: settings.maxActiveLoans,
-      unpaidFine: formatCents(unpaidFineCents),
-      isBlocked: member.isBlocked,
+      activeLoans: loans,
+      unpaidFineCents:
+        (returnedFine ? decimalToCents(returnedFine) : 0) +
+        overdueDays * settings.finePerDayCents,
     };
   }
 

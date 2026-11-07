@@ -17,6 +17,11 @@ export function formatCents(cents: number): string {
   return `${euros}.${String(cents % 100).padStart(2, '0')}`;
 }
 
+// 500 -> '5,00 €' za sporočila
+export function formatEuro(cents: number): string {
+  return `${formatCents(cents).replace('.', ',')} €`;
+}
+
 // Decimal(8, 2) iz baze v cente
 export function decimalToCents(amount: Prisma.Decimal): number {
   return amount.mul(100).toNumber();
