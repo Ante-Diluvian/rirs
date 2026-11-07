@@ -3,15 +3,21 @@ import { INestApplication } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { toDbDate } from '../src/common/dates';
+import { DEFAULT_SETTINGS } from '../prisma/seed-data';
+import { addDays, toDbDate } from '../src/common/dates';
 import {
   LoanStatus,
   Prisma,
   PrismaClient,
   Role,
 } from '../src/generated/prisma/client';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { SettingsService } from '../src/settings/settings.service';
 
 export const TEST_PASSWORD = 'geslo1234';
+
+// ClockService v testih vrne ta datum, enako kot na wireframe-ih
+export const TODAY = '2026-10-12';
 
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   const [{ name }] = await prisma.$queryRaw<{ name: string }[]>`
@@ -40,11 +46,35 @@ export function createMember(
 }
 
 // nizek faktor bcrypt samo za hitrejše teste, compare deluje enako
-export async function createUser(prisma: PrismaClient, role: Role) {
+export async function createUser(
+  prisma: PrismaClient,
+  role: Role,
+  data: Partial<Prisma.MemberCreateInput> = {},
+) {
   return createMember(prisma, {
     role,
     passwordHash: await bcrypt.hash(TEST_PASSWORD, 4),
+    ...data,
   });
+}
+
+// privzeta pravila s spremembami testa, predpomnilnik se osveži
+export async function setSettings(
+  app: INestApplication,
+  overrides: Record<string, string> = {},
+): Promise<void> {
+  const prisma = app.get(PrismaService);
+  for (const [key, value] of Object.entries({
+    ...DEFAULT_SETTINGS,
+    ...overrides,
+  })) {
+    await prisma.setting.upsert({
+      where: { key },
+      create: { key, value },
+      update: { value },
+    });
+  }
+  await app.get(SettingsService).reload();
 }
 
 export async function login(
@@ -79,7 +109,7 @@ export async function createBookWithCopies(prisma: PrismaClient, copies = 1) {
   });
 }
 
-// datumi niso pomembni, dokler test ne preverja rokov in zamudnin
+// privzeti rok je pomemben samo za teste rokov in zamudnin
 export function createLoan(
   prisma: PrismaClient,
   data: {
@@ -87,13 +117,18 @@ export function createLoan(
     librarianId: string;
     copyId: string;
     status: LoanStatus;
+    dueDate?: string;
+    fineAmount?: string;
+    finePaid?: boolean;
+    fineWaived?: boolean;
   },
 ) {
+  const { dueDate = '2026-09-22', ...rest } = data;
   return prisma.loan.create({
     data: {
-      ...data,
-      loanedOn: toDbDate('2026-09-01'),
-      dueDate: toDbDate('2026-09-22'),
+      ...rest,
+      loanedOn: toDbDate(addDays(dueDate, -21)),
+      dueDate: toDbDate(dueDate),
       returnedOn:
         data.status === LoanStatus.RETURNED ? toDbDate('2026-09-20') : null,
     },

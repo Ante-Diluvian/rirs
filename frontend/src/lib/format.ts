@@ -12,3 +12,19 @@ export function plural(
 ) {
   return forms[pluralForms[pluralRules.select(n)] ?? 3];
 }
+
+// »2026-11-02« → »2. 11. 2026«
+export function formatDate(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return `${day}. ${month}. ${year}`;
+}
+
+const euro = new Intl.NumberFormat("sl-SI", {
+  style: "currency",
+  currency: "EUR",
+});
+
+// »0.50« → »0,50 €«
+export function formatMoney(amount: string) {
+  return euro.format(Number(amount));
+}
