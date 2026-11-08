@@ -6,9 +6,10 @@ import {
 import { AuthUser } from '../auth/auth-user';
 import { UserDto } from '../auth/dto/user.dto';
 import { ClockService } from '../common/clock.service';
-import { diffDays, fromDbDate } from '../common/dates';
+import { fromDbDate } from '../common/dates';
 import { Messages } from '../common/messages';
 import { decimalToCents, formatCents } from '../common/money';
+import { FineCalculator } from '../fines/fine-calculator';
 import { LoanStatus, Prisma, Role } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
@@ -27,6 +28,7 @@ export class MembersService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly clock: ClockService,
+    private readonly fines: FineCalculator,
   ) {}
 
   // vsaka beseda se mora pojaviti v imenu, priimku ali e-pošti
@@ -94,16 +96,16 @@ export class MembersService {
       bookId: loan.copy.bookId,
       dueDate: fromDbDate(loan.dueDate),
     }));
-    const overdueDays = loans.reduce(
-      (days, loan) => days + Math.max(0, diffDays(today, loan.dueDate)),
+    const runningFineCents = loans.reduce(
+      (sum, loan) =>
+        sum + this.fines.calculate(loan.dueDate, today, settings).fineCents,
       0,
     );
     const returnedFine = returned._sum.fineAmount;
     return {
       activeLoans: loans,
       unpaidFineCents:
-        (returnedFine ? decimalToCents(returnedFine) : 0) +
-        overdueDays * settings.finePerDayCents,
+        (returnedFine ? decimalToCents(returnedFine) : 0) + runningFineCents,
     };
   }
 
