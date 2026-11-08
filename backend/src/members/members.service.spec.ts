@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { toDbDate } from '../common/dates';
+import { FineCalculator } from '../fines/fine-calculator';
 import { Member, Prisma, Role } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { Settings, SettingsService } from '../settings/settings.service';
@@ -64,6 +65,7 @@ function setup({
     prisma as unknown as PrismaService,
     settingsService,
     clock,
+    new FineCalculator(),
   );
   return { service, prisma };
 }

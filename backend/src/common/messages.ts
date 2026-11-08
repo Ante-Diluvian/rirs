@@ -94,6 +94,9 @@ export const Messages = {
     noSameTitle: 'Član nima izposojenega istega naslova',
     sameTitle: 'Član ima ta naslov že izposojen.',
   },
+  returns: {
+    notOnLoan: (inv: string) => `Izvod ${inv} ni izposojen`,
+  },
   database: {
     duplicate: 'Zapis s temi podatki že obstaja.',
     relationConflict: 'Zapis je povezan z drugimi podatki.',
