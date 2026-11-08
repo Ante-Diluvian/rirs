@@ -11,6 +11,7 @@ import { SettingsService } from '../settings/settings.service';
 export interface AssignedReservation {
   reservationId: string;
   memberId: string;
+  readyUntil: string;
 }
 
 // uporabljajo ga izposoja, vračilo (US-04) in preklic rezervacije (US-05)
@@ -44,18 +45,19 @@ export class ReservationQueueService {
     }
 
     const { pickupDays } = await this.settings.get();
+    const readyUntil = addDays(this.clock.today(), pickupDays);
     await tx.reservation.update({
       where: { id: next.id },
       data: {
         status: ReservationStatus.READY,
         copyId,
-        readyUntil: toDbDate(addDays(this.clock.today(), pickupDays)),
+        readyUntil: toDbDate(readyUntil),
       },
     });
     await tx.copy.update({
       where: { id: copyId },
       data: { status: CopyStatus.RESERVED },
     });
-    return { reservationId: next.id, memberId: next.member_id };
+    return { reservationId: next.id, memberId: next.member_id, readyUntil };
   }
 }

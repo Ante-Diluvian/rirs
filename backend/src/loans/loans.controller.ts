@@ -1,4 +1,12 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -17,7 +25,11 @@ import { Role } from '../generated/prisma/client';
 import { LoanRequestDto } from './dto/loan-request.dto';
 import { LoanCheckDto } from './dto/loan-check.dto';
 import { LoanDto } from './dto/loan.dto';
+import { ReturnPreviewDto } from './dto/return-preview.dto';
+import { ReturnRequestDto } from './dto/return-request.dto';
+import { ReturnDto } from './dto/return.dto';
 import { LoansService } from './loans.service';
+import { ReturnsService } from './returns.service';
 
 @ApiTags('loans')
 @ApiBearerAuth()
@@ -25,7 +37,10 @@ import { LoansService } from './loans.service';
 @Roles(Role.LIBRARIAN, Role.ADMIN)
 @Controller('loans')
 export class LoansController {
-  constructor(private readonly loans: LoansService) {}
+  constructor(
+    private readonly loans: LoansService,
+    private readonly returns: ReturnsService,
+  ) {}
 
   @Post('check')
   @HttpCode(HttpStatus.OK)
@@ -59,5 +74,36 @@ export class LoansController {
   ): Promise<LoanDto> {
     // knjižničar, ki izposojo evidentira, se shrani v librarianId
     return this.loans.create(dto, user.id);
+  }
+
+  @Get('return-preview')
+  @ApiOperation({
+    summary:
+      'Show the member, due date, overdue days and fine of an open loan without returning it',
+  })
+  @ApiOkResponse({ type: ReturnPreviewDto })
+  @ApiBadRequestResponse({ description: 'Missing inventory number' })
+  @ApiNotFoundResponse({
+    description:
+      'Copy does not exist or is not on loan, or the caller is not a librarian',
+  })
+  returnPreview(@Query() query: ReturnRequestDto): Promise<ReturnPreviewDto> {
+    return this.returns.preview(query.inventoryNumber);
+  }
+
+  @Post('return')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Return a copy: close the loan with its fine and assign the copy to the oldest waiting reservation',
+  })
+  @ApiOkResponse({ type: ReturnDto })
+  @ApiBadRequestResponse({ description: 'Missing inventory number' })
+  @ApiNotFoundResponse({
+    description: 'Copy does not exist, or the caller is not a librarian',
+  })
+  @ApiConflictResponse({ description: 'Copy is not on loan' })
+  returnCopy(@Body() dto: ReturnRequestDto): Promise<ReturnDto> {
+    return this.returns.returnCopy(dto.inventoryNumber);
   }
 }

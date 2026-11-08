@@ -44,6 +44,7 @@ describe('ReservationQueueService', () => {
     await expect(assign()).resolves.toEqual({
       reservationId: 'r1',
       memberId: 'm1',
+      readyUntil: '2026-10-15',
     });
     expect(tx.reservation.update).toHaveBeenCalledWith({
       where: { id: 'r1' },
