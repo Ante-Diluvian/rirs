@@ -24,6 +24,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { AuthUser } from '../auth/auth-user';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Messages } from '../common/messages';
 import { Role } from '../generated/prisma/client';
@@ -60,12 +62,16 @@ export class BooksController {
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Book details with authors, availability and queue length',
+    summary:
+      "Book details with authors, availability, queue length and the caller's reservation",
   })
   @ApiOkResponse({ type: BookDetailDto })
   @ApiNotFoundResponse({ description: 'Book does not exist' })
-  findOne(@Param('id', bookIdPipe) id: string): Promise<BookDetailDto> {
-    return this.books.findOne(id);
+  findOne(
+    @Param('id', bookIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ): Promise<BookDetailDto> {
+    return this.books.findOne(id, user.id);
   }
 
   @Post()

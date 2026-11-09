@@ -331,6 +331,7 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
         availableCopies: 0,
         totalCopies: 2,
         queueLength: 2,
+        myReservation: null,
       });
     });
 
