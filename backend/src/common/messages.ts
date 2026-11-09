@@ -22,6 +22,7 @@ export const Messages = {
   },
   members: {
     notFound: 'Član ne obstaja.',
+    blocked: 'Tvoj račun je blokiran. Obrni se na knjižnico.',
     roleInvalid: 'Vloga mora biti READER, LIBRARIAN ali ADMIN.',
     ownRole: 'Svoje vloge ne moreš spremeniti.',
     queryInvalid: 'Iskalni niz je lahko dolg največ 100 znakov',
@@ -96,6 +97,17 @@ export const Messages = {
   },
   returns: {
     notOnLoan: (inv: string) => `Izvod ${inv} ni izposojen`,
+  },
+  reservations: {
+    bookRequired: 'Izberi knjigo',
+    notFound: 'Rezervacija ne obstaja.',
+    copyAvailable: 'Naslov ima prost izvod, zato ga ni mogoče rezervirati.',
+    maxReservations: (max: number) =>
+      `Imaš že ${max} ${plural(max, ['aktivno rezervacijo', 'aktivni rezervaciji', 'aktivne rezervacije', 'aktivnih rezervacij'])}`,
+    duplicate: 'Ta naslov že imaš rezerviran.',
+    alreadyLoaned: 'Ta naslov že imaš izposojen.',
+    notOwner: 'Prekličeš lahko samo svojo rezervacijo.',
+    notActive: 'Rezervacija ni več aktivna, zato je ni mogoče preklicati.',
   },
   database: {
     duplicate: 'Zapis s temi podatki že obstaja.',

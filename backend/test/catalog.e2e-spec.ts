@@ -12,7 +12,13 @@ import {
   Role,
 } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { createMember, createUser, login, resetDatabase } from './factories';
+import {
+  createMember,
+  createUser,
+  login,
+  resetDatabase,
+  setSettings,
+} from './factories';
 
 interface BookPage {
   items: { title: string }[];
@@ -56,6 +62,7 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
 
   beforeEach(async () => {
     await resetDatabase(prisma);
+    await setSettings(app);
     const reader = await createUser(prisma, Role.READER);
     token = await login(app, reader.email);
     orwell = await prisma.author.create({
@@ -278,6 +285,7 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
             availableCopies: 1,
             totalCopies: 3,
             queueLength: 2,
+            myReservation: null,
           },
           {
             id: empty.id,
@@ -289,6 +297,7 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
             availableCopies: 0,
             totalCopies: 0,
             queueLength: 0,
+            myReservation: null,
           },
         ],
         total: 2,
@@ -331,6 +340,8 @@ describe('US-02 Iskanje po katalogu z razpoložljivostjo', () => {
         availableCopies: 0,
         totalCopies: 2,
         queueLength: 2,
+        myReservation: null,
+        pickupDays: 3,
       });
     });
 

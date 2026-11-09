@@ -12,6 +12,10 @@ import {
   ReservationStatus,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { MyReservationDto } from '../reservations/dto/reservation.dto';
+import { ACTIVE_RESERVATION } from '../reservations/reservation-policy';
+import { ReservationQueueService } from '../reservations/reservation-queue.service';
+import { SettingsService } from '../settings/settings.service';
 import { BookDto, bookWithAuthors } from './dto/book.dto';
 import { BookDetailDto } from './dto/book-detail.dto';
 import {
@@ -22,8 +26,6 @@ import {
 import { SaveBookDto } from './dto/save-book.dto';
 import { SearchBooksDto } from './dto/search-books.dto';
 import { toIsbn13 } from './isbn';
-
-const ACTIVE_RESERVATION = [ReservationStatus.WAITING, ReservationStatus.READY];
 
 export const BOOK_PAGE_SIZE = 20;
 
@@ -104,9 +106,13 @@ function toWriteError(error: unknown): unknown {
 
 @Injectable()
 export class BooksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly queue: ReservationQueueService,
+    private readonly settings: SettingsService,
+  ) {}
 
-  async search(query: SearchBooksDto): Promise<BookPageDto> {
+  async search(query: SearchBooksDto, memberId: string): Promise<BookPageDto> {
     const where = searchWhere(query);
     const page = query.page ?? 1;
     const [total, books] = await Promise.all([
@@ -119,10 +125,14 @@ export class BooksService {
         take: BOOK_PAGE_SIZE,
       }),
     ]);
-    const availability = await this.availability(books.map((book) => book.id));
+    const ids = books.map((book) => book.id);
+    const [availability, reservations] = await Promise.all([
+      this.availability(ids),
+      this.myReservations(ids, memberId),
+    ]);
     return {
       items: books.map((book, i) =>
-        BookListItemDto.from(book, availability[i]),
+        BookListItemDto.from(book, availability[i], reservations[i]),
       ),
       total,
       page,
@@ -130,14 +140,47 @@ export class BooksService {
     };
   }
 
-  async findOne(id: string): Promise<BookDetailDto> {
+  async findOne(id: string, memberId: string): Promise<BookDetailDto> {
     const book = await this.prisma.book.findUnique({
       where: { id },
       include: bookWithAuthors,
     });
     if (!book) throw new NotFoundException(Messages.books.notFound);
-    const [availability] = await this.availability([id]);
-    return { ...BookDto.from(book), ...availability };
+    const [[availability], [myReservation], settings] = await Promise.all([
+      this.availability([id]),
+      this.myReservations([id], memberId),
+      this.settings.get(),
+    ]);
+    return {
+      ...BookDto.from(book),
+      ...availability,
+      myReservation,
+      pickupDays: settings.pickupDays,
+    };
+  }
+
+  // aktivna rezervacija člana za vsako knjigo (največ ena, delni indeks
+  // reservation_one_active_per_member_book), v vrstnem redu bookIds
+  private async myReservations(
+    bookIds: string[],
+    memberId: string,
+  ): Promise<(MyReservationDto | null)[]> {
+    if (bookIds.length === 0) return [];
+    const reservations = await this.prisma.reservation.findMany({
+      where: {
+        bookId: { in: bookIds },
+        memberId,
+        status: { in: ACTIVE_RESERVATION },
+      },
+    });
+    const positions = await this.queue.positions(
+      this.prisma,
+      reservations.map((reservation) => reservation.id),
+    );
+    return bookIds.map((id) => {
+      const reservation = reservations.find((r) => r.bookId === id);
+      return reservation ? MyReservationDto.from(reservation, positions) : null;
+    });
   }
 
   async genres(): Promise<string[]> {

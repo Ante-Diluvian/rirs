@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Fragment, useId } from "react";
 import { Alert } from "@/components/Alert";
 import { NotFoundMessage } from "@/components/NotFoundMessage";
+import { ReservationControl } from "@/features/reservations/ReservationControl";
 import { plural } from "@/lib/format";
 import { AvailabilityBadge } from "./AvailabilityBadge";
 import { CoverPlaceholder } from "./CoverPlaceholder";
@@ -38,6 +39,11 @@ function AvailabilityPanel({ book }: { book: BookDetail }) {
       </h2>
       <AvailabilityBadge {...book} />
       <p className="text-sm text-zinc-700">{availabilityText(book)}</p>
+      <ReservationControl
+        book={book}
+        pickupDays={book.pickupDays}
+        className="pt-2"
+      />
     </section>
   );
 }

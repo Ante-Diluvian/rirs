@@ -8,7 +8,6 @@ import { api, type ApiError } from "@/lib/api";
 import { authorKeys, bookKeys, genreKeys } from "./keys";
 import type {
   AuthorName,
-  Availability,
   Book,
   BookDetail,
   BookListParams,
@@ -19,12 +18,6 @@ import type {
   SaveBookInput,
   UpdateCopyInput,
 } from "./types";
-
-const NO_AVAILABILITY: Availability = {
-  availableCopies: 0,
-  totalCopies: 0,
-  queueLength: 0,
-};
 
 function send<T>(path: string, method: string, body?: unknown) {
   return api<T>(path, {
@@ -82,13 +75,20 @@ export function useSaveBook(id: string | null) {
   return useMutation<Book, ApiError, SaveBookInput>({
     mutationFn: (input) =>
       id ? send(`/books/${id}`, "PUT", input) : send("/books", "POST", input),
-    onSuccess: (book) => {
-      // urejanje ne spremeni razpoložljivosti, nova knjiga pa še nima izvodov
-      queryClient.setQueryData<BookDetail>(bookKeys.detail(book.id), (old) => ({
-        ...NO_AVAILABILITY,
-        ...old,
-        ...book,
-      }));
+    onSuccess: async (book) => {
+      if (id) {
+        // urejanje ne spremeni razpoložljivosti in rezervacij
+        queryClient.setQueryData<BookDetail>(
+          bookKeys.detail(book.id),
+          (old) => old && { ...old, ...book },
+        );
+      } else {
+        // novo knjigo naložimo, preden jo obrazec prikaže za urejanje
+        await queryClient.prefetchQuery({
+          queryKey: bookKeys.detail(book.id),
+          queryFn: () => api<BookDetail>(`/books/${book.id}`),
+        });
+      }
       return queryClient.invalidateQueries({ queryKey: bookKeys.lists() });
     },
   });

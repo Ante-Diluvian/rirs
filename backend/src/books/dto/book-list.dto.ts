@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { MyReservationDto } from '../../reservations/dto/reservation.dto';
 import { BookAuthorDto, BookDto, BookWithAuthors } from './book.dto';
 
 export interface Availability {
@@ -35,9 +36,17 @@ export class BookListItemDto {
   @ApiProperty({ description: 'Reservations with status WAITING', example: 2 })
   queueLength: number;
 
+  @ApiProperty({
+    type: MyReservationDto,
+    nullable: true,
+    description: "The caller's WAITING or READY reservation of this book",
+  })
+  myReservation: MyReservationDto | null;
+
   static from(
     book: BookWithAuthors,
     availability: Availability,
+    myReservation: MyReservationDto | null,
   ): BookListItemDto {
     const { id, title, isbn, genre, publicationYear, authors } =
       BookDto.from(book);
@@ -49,6 +58,7 @@ export class BookListItemDto {
       publicationYear,
       authors,
       ...availability,
+      myReservation,
     };
   }
 }

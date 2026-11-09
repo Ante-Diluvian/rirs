@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { MyReservationDto } from '../../reservations/dto/reservation.dto';
 import { BookDto } from './book.dto';
 import { Availability } from './book-list.dto';
 
@@ -11,4 +12,17 @@ export class BookDetailDto extends BookDto implements Availability {
 
   @ApiProperty({ description: 'Reservations with status WAITING', example: 2 })
   queueLength: number;
+
+  @ApiProperty({
+    type: MyReservationDto,
+    nullable: true,
+    description: "The caller's WAITING or READY reservation of this book",
+  })
+  myReservation: MyReservationDto | null;
+
+  @ApiProperty({
+    description: 'Days to pick up a reserved copy (setting pickup_days)',
+    example: 3,
+  })
+  pickupDays: number;
 }

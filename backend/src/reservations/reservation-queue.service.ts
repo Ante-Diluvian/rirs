@@ -60,4 +60,22 @@ export class ReservationQueueService {
     });
     return { reservationId: next.id, memberId: next.member_id, readyUntil };
   }
+
+  // ADR-0012: položaj se ne shranjuje, je 1 + čakajoče rezervacije istega
+  // naslova z manjšim parom (created_at, id); vrne samo čakajoče rezervacije
+  async positions(
+    db: Prisma.TransactionClient,
+    reservationIds: string[],
+  ): Promise<Map<string, number>> {
+    if (reservationIds.length === 0) return new Map();
+    const rows = await db.$queryRaw<{ id: string; position: number }[]>`
+      SELECT r.id, 1 + (
+        SELECT count(*) FROM reservation o
+        WHERE o.book_id = r.book_id AND o.status = 'WAITING'
+          AND (o.created_at, o.id) < (r.created_at, r.id)
+      )::int AS position
+      FROM reservation r
+      WHERE r.id = ANY(${reservationIds}::uuid[]) AND r.status = 'WAITING'`;
+    return new Map(rows.map((row) => [row.id, row.position]));
+  }
 }

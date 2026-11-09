@@ -6,9 +6,9 @@ import { ReservationQueueService } from './reservation-queue.service';
 const COPY_ID = '1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e';
 const BOOK_ID = '5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
 
-function setup(waiting: { id: string; member_id: string }[]) {
+function setup(rows: object[]) {
   const tx = {
-    $queryRaw: jest.fn().mockResolvedValue(waiting),
+    $queryRaw: jest.fn().mockResolvedValue(rows),
     copy: { update: jest.fn() },
     reservation: { update: jest.fn() },
   };
@@ -23,7 +23,7 @@ function setup(waiting: { id: string; member_id: string }[]) {
       COPY_ID,
       BOOK_ID,
     );
-  return { tx, assign };
+  return { tx, service, assign };
 }
 
 describe('ReservationQueueService', () => {
@@ -69,5 +69,31 @@ describe('ReservationQueueService', () => {
     const sql = strings.join('?');
     expect(sql).toMatch(/ORDER BY created_at, id/);
     expect(sql).toMatch(/FOR UPDATE SKIP LOCKED/);
+  });
+});
+
+describe('ReservationQueueService.positions', () => {
+  it('US-05 AC2: položaj šteje čakajoče rezervacije z manjšim parom (created_at, id)', async () => {
+    const { tx, service } = setup([{ id: 'r2', position: 2 }]);
+
+    const positions = await service.positions(
+      tx as unknown as Prisma.TransactionClient,
+      ['r2'],
+    );
+
+    expect(positions).toEqual(new Map([['r2', 2]]));
+    const [[strings]] = tx.$queryRaw.mock.calls as [string[]][];
+    const sql = strings.join('?');
+    expect(sql).toMatch(/\(o\.created_at, o\.id\) < \(r\.created_at, r\.id\)/);
+    expect(sql).toMatch(/o\.status = 'WAITING'/);
+  });
+
+  it('brez rezervacij ne pošlje poizvedbe', async () => {
+    const { tx, service } = setup([]);
+
+    await expect(
+      service.positions(tx as unknown as Prisma.TransactionClient, []),
+    ).resolves.toEqual(new Map());
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
   });
 });

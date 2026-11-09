@@ -24,6 +24,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { AuthUser } from '../auth/auth-user';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Messages } from '../common/messages';
 import { Role } from '../generated/prisma/client';
@@ -48,24 +50,31 @@ export class BooksController {
   @Get()
   @ApiOperation({
     summary:
-      'Search the catalog with availability and queue length, 20 books per page',
+      "Search the catalog with availability, queue length and the caller's reservation, 20 books per page",
   })
   @ApiOkResponse({ type: BookPageDto })
   @ApiBadRequestResponse({
     description: 'Query shorter than 3 characters or an invalid parameter',
   })
-  search(@Query() query: SearchBooksDto): Promise<BookPageDto> {
-    return this.books.search(query);
+  search(
+    @Query() query: SearchBooksDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<BookPageDto> {
+    return this.books.search(query, user.id);
   }
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Book details with authors, availability and queue length',
+    summary:
+      "Book details with authors, availability, queue length, the caller's reservation and pickup days",
   })
   @ApiOkResponse({ type: BookDetailDto })
   @ApiNotFoundResponse({ description: 'Book does not exist' })
-  findOne(@Param('id', bookIdPipe) id: string): Promise<BookDetailDto> {
-    return this.books.findOne(id);
+  findOne(
+    @Param('id', bookIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ): Promise<BookDetailDto> {
+    return this.books.findOne(id, user.id);
   }
 
   @Post()

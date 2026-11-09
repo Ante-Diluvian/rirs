@@ -13,6 +13,7 @@ import { HealthModule } from './health/health.module';
 import { LoansModule } from './loans/loans.module';
 import { MembersModule } from './members/members.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ReservationsModule } from './reservations/reservations.module';
 import { SettingsModule } from './settings/settings.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { SettingsModule } from './settings/settings.module';
     BooksModule,
     CopiesModule,
     LoansModule,
+    ReservationsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
