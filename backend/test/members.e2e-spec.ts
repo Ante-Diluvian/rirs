@@ -268,14 +268,12 @@ describe('US-03 Izposoja: iskanje člana in povzetek', () => {
   });
 
   describe('dostop', () => {
-    it('bralec dobi 404 »Ta stran ne obstaja« pri iskanju in povzetku', async () => {
-      for (const send of [
-        () => search('maja', Role.READER),
-        () => summary(librarian.id, Role.READER),
-      ]) {
-        const res = await send().expect(404);
-        expect(res.body).toMatchObject({ message: 'Ta stran ne obstaja' });
-      }
+    it('bralec dobi 404 »Ta stran ne obstaja« pri iskanju, pri povzetku drugega člana pa 403', async () => {
+      const res = await search('maja', Role.READER).expect(404);
+      expect(res.body).toMatchObject({ message: 'Ta stran ne obstaja' });
+
+      // US-06 AC5
+      await summary(librarian.id, Role.READER).expect(403);
     });
 
     it('brez prijave vrne 401', async () => {

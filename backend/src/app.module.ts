@@ -12,6 +12,7 @@ import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 import { HealthModule } from './health/health.module';
 import { LoansModule } from './loans/loans.module';
 import { MembersModule } from './members/members.module';
+import { MyLibraryModule } from './my-library/my-library.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { SettingsModule } from './settings/settings.module';
@@ -34,6 +35,7 @@ import { SettingsModule } from './settings/settings.module';
     CopiesModule,
     LoansModule,
     ReservationsModule,
+    MyLibraryModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },

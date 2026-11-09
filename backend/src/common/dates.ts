@@ -1,8 +1,12 @@
 // en-CA oblikuje datum kot YYYY-MM-DD
-export function todayInLjubljana(now: Date = new Date()): string {
+export function dateInLjubljana(at: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Ljubljana',
-  }).format(now);
+  }).format(at);
+}
+
+export function todayInLjubljana(now: Date = new Date()): string {
+  return dateInLjubljana(now);
 }
 
 // računamo v UTC, da premik ure ne vpliva na rezultat
