@@ -100,7 +100,9 @@ describe('US-05 Rezervacija in čakalna vrsta', () => {
     return { member, token: await login(app, member.email) };
   }
 
-  async function unavailableBook(statuses = [CopyStatus.ON_LOAN]) {
+  async function unavailableBook(
+    statuses: CopyStatus[] = [CopyStatus.ON_LOAN],
+  ) {
     const book = await createBookWithCopies(prisma, 2);
     for (const [i, copy] of book.copies.entries()) {
       await prisma.copy.update({
@@ -297,6 +299,72 @@ describe('US-05 Rezervacija in čakalna vrsta', () => {
 
       // tuja rezervacija se ne prikaže
       expect(await myReservation(tokens.LIBRARIAN)).toBeNull();
+    });
+
+    it('AC2: zadetki v katalogu vsebujejo rezervacijo bralca s položajem', async () => {
+      const ready = await unavailableBook([CopyStatus.RESERVED]);
+      const free = await createBookWithCopies(prisma, 1);
+      await addReservation((await createMember(prisma)).id);
+      const waiting = await reserve().expect(201);
+      const readyReservation = await addReservation(
+        reader.member.id,
+        ReservationStatus.READY,
+        {
+          bookId: ready.bookId,
+          copyId: ready.copies[0].id,
+          readyUntil: toDbDate('2026-10-14'),
+        },
+      );
+
+      const list = async (token: string) => {
+        const res = await http()
+          .get('/books')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200);
+        const items = (
+          res.body as {
+            items: { id: string; myReservation: MyReservation | null }[];
+          }
+        ).items;
+        return new Map(items.map((item) => [item.id, item.myReservation]));
+      };
+
+      const mine = await list(reader.token);
+      expect(mine.get(bookId)).toEqual({
+        id: (waiting.body as MyReservation).id,
+        status: ReservationStatus.WAITING,
+        position: 2,
+        readyUntil: null,
+      });
+      expect(mine.get(ready.bookId)).toEqual({
+        id: readyReservation.id,
+        status: ReservationStatus.READY,
+        position: null,
+        readyUntil: '2026-10-14',
+      });
+      expect(mine.get(free.id)).toBeNull();
+
+      // drug bralec vidi samo svoje rezervacije
+      const other = await newReader('Luka', 'Zupan');
+      expect([...(await list(other.token)).values()]).toEqual([
+        null,
+        null,
+        null,
+      ]);
+    });
+
+    it('stran knjige: rok za prevzem se bere iz nastavitve pickup_days', async () => {
+      const days = async () => {
+        const res = await http()
+          .get(`/books/${bookId}`)
+          .set('Authorization', `Bearer ${reader.token}`)
+          .expect(200);
+        return (res.body as { pickupDays: number }).pickupDays;
+      };
+
+      expect(await days()).toBe(3);
+      await setSettings(app, { pickup_days: '5' });
+      expect(await days()).toBe(5);
     });
 
     it('AC3: četrto aktivno rezervacijo zavrne z "Imaš že 3 aktivne rezervacije" in je ne ustvari', async () => {

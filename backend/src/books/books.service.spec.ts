@@ -6,6 +6,7 @@ import {
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReservationQueueService } from '../reservations/reservation-queue.service';
+import { SettingsService } from '../settings/settings.service';
 import { BooksService } from './books.service';
 import { BookWithAuthors } from './dto/book.dto';
 import { SaveBookDto } from './dto/save-book.dto';
@@ -69,6 +70,7 @@ describe('BooksService', () => {
     service = new BooksService(
       prisma as unknown as PrismaService,
       {} as ReservationQueueService,
+      {} as SettingsService,
     );
   });
 

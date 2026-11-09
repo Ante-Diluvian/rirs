@@ -19,4 +19,10 @@ export class BookDetailDto extends BookDto implements Availability {
     description: "The caller's WAITING or READY reservation of this book",
   })
   myReservation: MyReservationDto | null;
+
+  @ApiProperty({
+    description: 'Days to pick up a reserved copy (setting pickup_days)',
+    example: 3,
+  })
+  pickupDays: number;
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ReservationControl } from "@/features/reservations/ReservationControl";
 import { AvailabilityBadge } from "./AvailabilityBadge";
 import { CoverPlaceholder } from "./CoverPlaceholder";
 import { authorNames } from "./format";
@@ -33,6 +34,11 @@ export function BookResult({ book }: { book: BookListItem }) {
           {book.queueLength > 0 ? `${book.queueLength} v vrsti` : "brez vrste"}
         </p>
       </div>
+      {/* nad povezavo zadetka, da gumba ostaneta klikljiva */}
+      <ReservationControl
+        book={book}
+        className="relative z-10 w-full sm:w-44"
+      />
     </li>
   );
 }

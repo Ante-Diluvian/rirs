@@ -1,3 +1,5 @@
+import type { MyReservation } from "@/features/reservations/types";
+
 export type CopyStatus = "AVAILABLE" | "ON_LOAN" | "RESERVED" | "LOST";
 
 export interface AuthorName {
@@ -24,9 +26,17 @@ export interface Availability {
   queueLength: number;
 }
 
-export interface BookDetail extends Book, Availability {}
+// rezervacija prijavljenega bralca, null, če je nima
+export interface WithMyReservation {
+  myReservation: MyReservation | null;
+}
 
-export interface BookListItem extends Availability {
+export interface BookDetail extends Book, Availability, WithMyReservation {
+  // rok za prevzem iz nastavitve pickup_days
+  pickupDays: number;
+}
+
+export interface BookListItem extends Availability, WithMyReservation {
   id: string;
   title: string;
   isbn: string;

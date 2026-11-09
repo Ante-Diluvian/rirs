@@ -50,20 +50,23 @@ export class BooksController {
   @Get()
   @ApiOperation({
     summary:
-      'Search the catalog with availability and queue length, 20 books per page',
+      "Search the catalog with availability, queue length and the caller's reservation, 20 books per page",
   })
   @ApiOkResponse({ type: BookPageDto })
   @ApiBadRequestResponse({
     description: 'Query shorter than 3 characters or an invalid parameter',
   })
-  search(@Query() query: SearchBooksDto): Promise<BookPageDto> {
-    return this.books.search(query);
+  search(
+    @Query() query: SearchBooksDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<BookPageDto> {
+    return this.books.search(query, user.id);
   }
 
   @Get(':id')
   @ApiOperation({
     summary:
-      "Book details with authors, availability, queue length and the caller's reservation",
+      "Book details with authors, availability, queue length, the caller's reservation and pickup days",
   })
   @ApiOkResponse({ type: BookDetailDto })
   @ApiNotFoundResponse({ description: 'Book does not exist' })
