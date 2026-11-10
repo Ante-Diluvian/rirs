@@ -8,6 +8,7 @@ import { configureApp } from '../src/app.setup';
 import { ClockService } from '../src/common/clock.service';
 import { toDbDate } from '../src/common/dates';
 import {
+  CopyStatus,
   LoanStatus,
   Member,
   Prisma,
@@ -106,6 +107,7 @@ describe('US-06 Moja knjižnica', () => {
     return {
       id: book.id,
       copyId: book.copies[0].id,
+      inventoryNumber: book.copies[0].inventoryNumber,
       author: {
         id: book.authors[0].authorId,
         firstName: 'George',
@@ -152,6 +154,34 @@ describe('US-06 Moja knjižnica', () => {
     prisma.reservation.create({
       data: { memberId, bookId, status, ...data },
     });
+
+  // izvod je izposojen, da ga lahko knjižničar na pultu vrne
+  async function lendCopy(memberId: string, dueDate: string) {
+    const { loan, book } = await addLoan(memberId, { dueDate });
+    await prisma.copy.update({
+      where: { id: book.copyId },
+      data: { status: CopyStatus.ON_LOAN },
+    });
+    return { loan, book };
+  }
+
+  const returnCopy = (inventoryNumber: string) =>
+    http()
+      .post('/loans/return')
+      .set('Authorization', `Bearer ${tokens.LIBRARIAN}`)
+      .send({ inventoryNumber });
+
+  const fineRule = async (memberId: string, inventoryNumber: string) => {
+    const res = await http()
+      .post('/loans/check')
+      .set('Authorization', `Bearer ${tokens.LIBRARIAN}`)
+      .send({ memberId, inventoryNumber })
+      .expect(200);
+    const { checks } = res.body as {
+      checks: { rule: string; passed: boolean; message: string }[];
+    };
+    return checks.find((check) => check.rule === 'FINE_LIMIT');
+  };
 
   const myLoans = async (token = maja.token) =>
     (await get('/me/loans', token).expect(200)).body as MyLoan[];
@@ -454,6 +484,71 @@ describe('US-06 Moja knjižnica', () => {
         id: maja.member.id,
         activeLoans: 0,
         unpaidFine: '0.00',
+      });
+    });
+  });
+
+  describe('skupaj z vračilom in izposojo na pultu', () => {
+    it('AC1, AC4: po vračilu zamujene izposoje izposoja izgine, zamudnina pa ostane neplačana', async () => {
+      const { book } = await lendCopy(maja.member.id, '2026-10-07');
+      expect(await mySummary()).toMatchObject({
+        activeLoans: 1,
+        unpaidFine: '0.50',
+      });
+
+      await returnCopy(book.inventoryNumber).expect(200);
+
+      expect(await myLoans()).toEqual([]);
+      expect(await mySummary()).toMatchObject({
+        activeLoans: 0,
+        unpaidFine: '0.50',
+      });
+    });
+
+    it('AC3: ko knjižničar vrne izvod, je čakajoča rezervacija na voljo z rokom prevzema', async () => {
+      const { book } = await lendCopy(janez.member.id, '2026-10-26');
+      const reservation = await addReservation(maja.member.id, book.id);
+      expect(await myReservations()).toEqual([
+        expect.objectContaining({
+          id: reservation.id,
+          status: ReservationStatus.WAITING,
+          position: 1,
+          readyUntil: null,
+        }),
+      ]);
+
+      await returnCopy(book.inventoryNumber).expect(200);
+
+      expect(await myReservations()).toEqual([
+        expect.objectContaining({
+          id: reservation.id,
+          status: ReservationStatus.READY,
+          position: null,
+          readyUntil: '2026-10-15',
+        }),
+      ]);
+    });
+
+    it('AC4: opozorilo o zamudnini se ujema s pravilom izposoje na pultu', async () => {
+      const free = await newBook('Na klancu');
+      await addReturnedFine(maja.member.id, '5.00');
+
+      expect(await mySummary()).toMatchObject({ borrowingBlocked: false });
+      expect(
+        await fineRule(maja.member.id, free.inventoryNumber),
+      ).toMatchObject({ passed: true });
+
+      await addReturnedFine(maja.member.id, '0.01');
+
+      expect(await mySummary()).toMatchObject({
+        unpaidFine: '5.01',
+        borrowingBlocked: true,
+      });
+      expect(await fineRule(maja.member.id, free.inventoryNumber)).toEqual({
+        rule: 'FINE_LIMIT',
+        passed: false,
+        message:
+          'Član ima neplačano zamudnino 5,01 €, kar presega mejo 5,00 €.',
       });
     });
   });
