@@ -27,3 +27,36 @@ Zakaj smo izbrali posamezne tehnologije, je opisano v [arhitekturnih odločitvah
 | [Uporabniške zgodbe](docs/05-uporabniske-zgodbe.md) | uporabniške zgodbe s kriteriji sprejemljivosti |
 | [Wireframes](docs/05-wireframes.md) | wireframe-i glavnih zaslonov MVP in navodila za urejanje |
 | [Arhitekturne odločitve (ADR)](docs/adr) | seznam odločitev v obliki MADR in postopek za nove odločitve |
+
+## Razvoj
+
+| Mapa | Vsebina |
+|---|---|
+| `backend/` | REST API: NestJS 12 (CommonJS), Jest, ESLint, Swagger |
+| `frontend/` | Next.js 16 (App Router), React 19, Tailwind CSS 4 |
+
+Predpogoj je Node.js 22 LTS (različica je v `.nvmrc`). Oba projekta uporabljata TypeScript `~6.0`.
+
+1. Kopiraj `.env.example` v `.env` v korenu repozitorija in nastavi vrednosti. Backend in frontend bereta isto datoteko.
+2. Backend: `cd backend && npm install && npm run start:dev`. API teče na <http://localhost:3001>, dokumentacija Swagger na <http://localhost:3001/docs>, stanje na `GET /health`.
+3. Frontend: `cd frontend && npm install && npm run dev`. Aplikacija teče na <http://localhost:3000>.
+
+| Namen | Backend | Frontend |
+|---|---|---|
+| razvojni strežnik | `npm run start:dev` | `npm run dev` |
+| lint | `npm run lint` (`npm run lint:fix` popravi) | `npm run lint` |
+| gradnja | `npm run build` | `npm run build` |
+| enotni testi | `npm test` | – |
+| e2e testi | `npm run test:e2e` | – |
+
+### Spremenljivke okolja
+
+| Spremenljivka | Uporablja | Pomen |
+|---|---|---|
+| `DATABASE_URL` | backend | povezava do PostgreSQL |
+| `PORT` | backend | vrata API, privzeto `3001` |
+| `JWT_SECRET` | backend | skrivnost za podpis žetonov JWT |
+| `JWT_EXPIRES_IN` | backend | veljavnost žetona, npr. `1h` |
+| `FRONTEND_ORIGIN` | backend | izvor frontenda, ki ga dovoli CORS, privzeto `http://localhost:3000` |
+| `NEXT_PUBLIC_API_URL` | frontend | naslov API, kot ga vidi brskalnik, vgradi se ob gradnji |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | seed | prvi administrator |

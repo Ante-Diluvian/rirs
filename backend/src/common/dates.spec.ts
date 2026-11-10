@@ -1,0 +1,72 @@
+import {
+  addDays,
+  diffDays,
+  fromDbDate,
+  toDbDate,
+  todayInLjubljana,
+} from './dates';
+
+describe('dates', () => {
+  it('todayInLjubljana vrne koledarski datum v Ljubljani', () => {
+    expect(todayInLjubljana(new Date('2026-10-12T10:00:00Z'))).toBe(
+      '2026-10-12',
+    );
+    // 23.30 UTC je v Ljubljani že naslednji dan
+    expect(todayInLjubljana(new Date('2026-10-12T22:30:00Z'))).toBe(
+      '2026-10-13',
+    );
+    expect(todayInLjubljana(new Date('2026-12-31T23:30:00Z'))).toBe(
+      '2027-01-01',
+    );
+  });
+
+  it('todayInLjubljana upošteva poletni in zimski čas ter prestopni dan', () => {
+    // poletni čas (UTC+2): 22.30 UTC je že naslednji dan
+    expect(todayInLjubljana(new Date('2026-10-24T22:30:00Z'))).toBe(
+      '2026-10-25',
+    );
+    // zimski čas (UTC+1): 22.30 UTC je še isti dan
+    expect(todayInLjubljana(new Date('2026-10-25T22:30:00Z'))).toBe(
+      '2026-10-25',
+    );
+    expect(todayInLjubljana(new Date('2026-03-28T23:30:00Z'))).toBe(
+      '2026-03-29',
+    );
+    expect(todayInLjubljana(new Date('2028-02-28T23:30:00Z'))).toBe(
+      '2028-02-29',
+    );
+  });
+
+  it('addDays upošteva konec meseca, prestopni dan in prehod na zimski čas', () => {
+    expect(addDays('2026-01-31', 1)).toBe('2026-02-01');
+    expect(addDays('2028-02-28', 1)).toBe('2028-02-29');
+    expect(addDays('2026-10-24', 2)).toBe('2026-10-26');
+    expect(addDays('2026-10-12', 21)).toBe('2026-11-02');
+    expect(addDays('2026-10-12', -5)).toBe('2026-10-07');
+    expect(addDays('2026-02-28', 1)).toBe('2026-03-01');
+    expect(addDays('2028-02-20', 21)).toBe('2028-03-12');
+    expect(addDays('2026-12-20', 21)).toBe('2027-01-10');
+    expect(addDays('2026-03-28', 2)).toBe('2026-03-30');
+  });
+
+  it('diffDays šteje koledarske dni tudi čez prehod na zimski čas', () => {
+    expect(diffDays('2026-10-12', '2026-10-07')).toBe(5);
+    expect(diffDays('2026-10-26', '2026-10-24')).toBe(2);
+    expect(diffDays('2026-10-07', '2026-10-12')).toBe(-5);
+    expect(diffDays('2026-03-30', '2026-03-28')).toBe(2);
+    expect(diffDays('2028-03-01', '2028-02-28')).toBe(2);
+    expect(diffDays('2026-03-01', '2026-02-28')).toBe(1);
+    expect(diffDays('2027-01-02', '2026-12-30')).toBe(3);
+  });
+
+  it('toDbDate vrne polnoč UTC', () => {
+    expect(toDbDate('2026-10-12').toISOString()).toBe(
+      '2026-10-12T00:00:00.000Z',
+    );
+  });
+
+  it('fromDbDate vrne datum iz baze kot YYYY-MM-DD', () => {
+    expect(fromDbDate(toDbDate('2026-10-12'))).toBe('2026-10-12');
+    expect(fromDbDate(toDbDate('1903-01-24'))).toBe('1903-01-24');
+  });
+});
