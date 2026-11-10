@@ -22,6 +22,7 @@ export const Messages = {
   },
   members: {
     notFound: 'Član ne obstaja.',
+    forbidden: 'Vidiš lahko samo svoje podatke.',
     blocked: 'Tvoj račun je blokiran. Obrni se na knjižnico.',
     roleInvalid: 'Vloga mora biti READER, LIBRARIAN ali ADMIN.',
     ownRole: 'Svoje vloge ne moreš spremeniti.',

@@ -1,4 +1,5 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { AuthUser } from '../auth/auth-user';
 import { toDbDate } from '../common/dates';
 import { FineCalculator } from '../fines/fine-calculator';
 import { Member, Prisma, Role } from '../generated/prisma/client';
@@ -21,6 +22,11 @@ const member: Member = {
   joinedOn: toDbDate('2025-01-15'),
   isBlocked: false,
   createdAt: new Date('2025-01-15T10:00:00Z'),
+};
+
+const librarian: AuthUser = {
+  id: '7d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a',
+  role: Role.LIBRARIAN,
 };
 
 const settings: Settings = {
@@ -102,7 +108,7 @@ describe('MembersService', () => {
     it('član brez izposoj ima 0 izposoj in zamudnino 0.00', async () => {
       const { service } = setup();
 
-      await expect(service.summary(member.id)).resolves.toEqual({
+      await expect(service.summary(member.id, librarian)).resolves.toEqual({
         id: member.id,
         firstName: 'Janez',
         lastName: 'Novak',
@@ -118,7 +124,9 @@ describe('MembersService', () => {
     it('izposoja z rokom danes ali v prihodnosti nima zamudnine', async () => {
       const { service } = setup({ dueDates: ['2026-10-12', '2026-11-02'] });
 
-      await expect(service.summary(member.id)).resolves.toMatchObject({
+      await expect(
+        service.summary(member.id, librarian),
+      ).resolves.toMatchObject({
         activeLoans: 2,
         unpaidFine: '0.00',
       });
@@ -128,7 +136,9 @@ describe('MembersService', () => {
       // 5 dni (rok 7. 10.) in 1 dan (rok 11. 10.)
       const { service } = setup({ dueDates: ['2026-10-07', '2026-10-11'] });
 
-      await expect(service.summary(member.id)).resolves.toMatchObject({
+      await expect(
+        service.summary(member.id, librarian),
+      ).resolves.toMatchObject({
         activeLoans: 2,
         unpaidFine: '0.60',
       });
@@ -140,7 +150,9 @@ describe('MembersService', () => {
         finePerDayCents: 25,
       });
 
-      await expect(service.summary(member.id)).resolves.toMatchObject({
+      await expect(
+        service.summary(member.id, librarian),
+      ).resolves.toMatchObject({
         unpaidFine: '0.50',
       });
     });
@@ -152,7 +164,9 @@ describe('MembersService', () => {
       });
 
       // 15 dni × 0,10 € + 4,30 €
-      await expect(service.summary(member.id)).resolves.toMatchObject({
+      await expect(
+        service.summary(member.id, librarian),
+      ).resolves.toMatchObject({
         unpaidFine: '5.80',
       });
       expect(prisma.loan.aggregate).toHaveBeenCalledWith({
@@ -169,7 +183,9 @@ describe('MembersService', () => {
     it('vrne stanje računa in mejo izposoj', async () => {
       const { service } = setup({ found: { ...member, isBlocked: true } });
 
-      await expect(service.summary(member.id)).resolves.toMatchObject({
+      await expect(
+        service.summary(member.id, librarian),
+      ).resolves.toMatchObject({
         maxActiveLoans: 5,
         isBlocked: true,
       });
@@ -178,10 +194,28 @@ describe('MembersService', () => {
     it('za neobstoječega člana vrže 404 »Član ne obstaja.«', async () => {
       const { service, prisma } = setup({ found: null as unknown as Member });
 
-      await expect(service.summary(member.id)).rejects.toThrow(
+      await expect(service.summary(member.id, librarian)).rejects.toThrow(
         new NotFoundException('Član ne obstaja.'),
       );
       expect(prisma.loan.findMany).not.toHaveBeenCalled();
+    });
+
+    it('US-06 AC5: bralec dobi svoj povzetek', async () => {
+      const { service } = setup();
+
+      await expect(
+        service.summary(member.id, { id: member.id, role: Role.READER }),
+      ).resolves.toMatchObject({ id: member.id });
+    });
+
+    it('US-06 AC5: bralec za drugega člana dobi 403, preden se preveri, ali član obstaja', async () => {
+      const { service, prisma } = setup();
+      const reader: AuthUser = { id: librarian.id, role: Role.READER };
+
+      await expect(service.summary(member.id, reader)).rejects.toThrow(
+        new ForbiddenException('Vidiš lahko samo svoje podatke.'),
+      );
+      expect(prisma.member.findUnique).not.toHaveBeenCalled();
     });
   });
 

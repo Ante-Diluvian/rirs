@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -50,7 +51,12 @@ export class MembersService {
     return members.map((member) => UserDto.from(member));
   }
 
-  async summary(id: string): Promise<MemberSummaryDto> {
+  // US-06 AC5: bralec vidi samo svoj povzetek, tudi če član ne obstaja
+  async summary(id: string, viewer: AuthUser): Promise<MemberSummaryDto> {
+    if (viewer.role === Role.READER && viewer.id !== id) {
+      throw new ForbiddenException(Messages.members.forbidden);
+    }
+
     const member = await this.prisma.member.findUnique({ where: { id } });
     if (!member) throw new NotFoundException(Messages.members.notFound);
 

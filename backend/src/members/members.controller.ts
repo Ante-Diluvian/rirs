@@ -12,6 +12,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -53,16 +54,19 @@ export class MembersController {
   }
 
   @Get(':id/summary')
-  @Roles(Role.LIBRARIAN, Role.ADMIN)
+  @Roles(Role.LIBRARIAN, Role.ADMIN, Role.READER)
   @ApiOperation({
-    summary: 'Active loans, unpaid fines and account status of a member',
+    summary:
+      'Active loans, unpaid fines and account status of a member; a reader can only get their own',
   })
   @ApiOkResponse({ type: MemberSummaryDto })
-  @ApiNotFoundResponse({
-    description: 'Member does not exist, or the caller is not a librarian',
-  })
-  summary(@Param('id', memberIdPipe) id: string): Promise<MemberSummaryDto> {
-    return this.members.summary(id);
+  @ApiForbiddenResponse({ description: 'A reader asks for another member' })
+  @ApiNotFoundResponse({ description: 'Member does not exist' })
+  summary(
+    @Param('id', memberIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ): Promise<MemberSummaryDto> {
+    return this.members.summary(id, user);
   }
 
   @Patch(':id/role')
