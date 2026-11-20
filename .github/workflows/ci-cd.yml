@@ -35,3 +35,68 @@ jobs:
       - name: Frontend – ESLint
         working-directory: frontend
         run: npm run lint
+
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3001' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Cache gradnje Next.js
+        uses: actions/cache@v4
+        with:
+          path: frontend/.next/cache
+          key: nextjs-${{ hashFiles('frontend/package-lock.json') }}-${{ hashFiles('frontend/src/**') }}
+          restore-keys: |
+            nextjs-${{ hashFiles('frontend/package-lock.json') }}-
+
+      - name: Backend – namestitev odvisnosti
+        working-directory: backend
+        run: npm ci
+
+      - name: Backend – gradnja
+        working-directory: backend
+        run: npm run build
+
+      - name: Frontend – namestitev odvisnosti
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend – gradnja
+        working-directory: frontend
+        run: npm run build
+
+      - name: Frontend – priprava paketa
+        run: |
+          mkdir -p frontend-dist/.next
+          cp -r frontend/.next/standalone/. frontend-dist/
+          cp -r frontend/.next/static frontend-dist/.next/static
+
+      - name: Shrani artefakt backenda
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: |
+            backend/dist
+            backend/prisma
+            backend/package.json
+            backend/package-lock.json
+            backend/prisma.config.ts
+          if-no-files-found: error
+
+      - name: Shrani artefakt frontenda
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend-dist
+          include-hidden-files: true
+          if-no-files-found: error
