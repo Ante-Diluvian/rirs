@@ -1,0 +1,15 @@
+# Slika za namestitev: aplikacija je že zgrajena v jobu build (mapa dist/),
+# tukaj se namestijo samo produkcijske odvisnosti.
+FROM node:22-alpine
+RUN apk add --no-cache openssl
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json prisma.config.ts ./
+COPY prisma ./prisma
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY dist ./dist
+
+EXPOSE 3001
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]

@@ -1,0 +1,9 @@
+# Slika za namestitev: vsebuje že zgrajen Next.js (standalone) iz joba build.
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+
+COPY . ./
+
+EXPOSE 3000
+CMD ["node", "server.js"]
