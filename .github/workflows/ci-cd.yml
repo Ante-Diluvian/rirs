@@ -159,3 +159,67 @@ jobs:
             backend/coverage
             frontend/coverage
           if-no-files-found: warn
+
+  deploy:
+    needs: [lint, build, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.FRONTEND_URL }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RENDER_DEPLOY_HOOK_BACKEND: ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
+      RENDER_DEPLOY_HOOK_FRONTEND: ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}
+    steps:
+      - name: Prenesi Dockerfile.deploy
+        uses: actions/checkout@v4
+
+      - name: Prenesi artefakt backenda
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: backend-build
+
+      - name: Prenesi artefakt frontenda
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend-build
+
+      - name: Imena slik
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "BACKEND_IMAGE=ghcr.io/${owner}/rirs-backend" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=ghcr.io/${owner}/rirs-frontend" >> "$GITHUB_ENV"
+
+      - name: Prijava v GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Zapakiraj in objavi sliko backenda
+        run: |
+          docker build -f backend/Dockerfile.deploy -t "$BACKEND_IMAGE:$GITHUB_SHA" -t "$BACKEND_IMAGE:latest" backend-build
+          docker push --all-tags "$BACKEND_IMAGE"
+
+      - name: Zapakiraj in objavi sliko frontenda
+        run: |
+          docker build -f frontend/Dockerfile.deploy -t "$FRONTEND_IMAGE:$GITHUB_SHA" -t "$FRONTEND_IMAGE:latest" frontend-build
+          docker push --all-tags "$FRONTEND_IMAGE"
+
+      - name: Namesti backend na Render
+        if: env.RENDER_DEPLOY_HOOK_BACKEND != ''
+        run: |
+          img=$(jq -rn --arg v "$BACKEND_IMAGE:$GITHUB_SHA" '$v|@uri')
+          curl -fsS -X POST "${RENDER_DEPLOY_HOOK_BACKEND}&imgURL=${img}"
+
+      - name: Namesti frontend na Render
+        if: env.RENDER_DEPLOY_HOOK_FRONTEND != ''
+        run: |
+          img=$(jq -rn --arg v "$FRONTEND_IMAGE:$GITHUB_SHA" '$v|@uri')
+          curl -fsS -X POST "${RENDER_DEPLOY_HOOK_FRONTEND}&imgURL=${img}"
